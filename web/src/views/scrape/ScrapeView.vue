@@ -12,8 +12,8 @@ import {
   NSelect,
   NTag,
 } from "naive-ui";
-import { ColorWandOutline } from "@vicons/ionicons5";
-import { defaultScrapeFields, type ScrapeFields } from "../../api/client";
+import { ColorWandOutline, LanguageOutline, SettingsOutline } from "@vicons/ionicons5";
+import { defaultScrapeFields, type Platform, type ScrapeFields, type ScrapeReport } from "../../api/client";
 import { useAppStore } from "../app/composables/useApp";
 
 const app = useAppStore();
@@ -34,6 +34,34 @@ const canStart = computed(
       fields.logo),
 );
 
+const pendingEn = computed(() => app.stats?.pending_en ?? 0);
+const missingCovers = computed(() => app.scrapeStatus?.missing_covers ?? app.stats?.missing_covers ?? 0);
+const sourcesReady = computed(() => {
+  let n = 0;
+  if (app.scrapeStatus?.igdb_configured) n++;
+  if (app.scrapeStatus?.screenscraper_configured) n++;
+  if (app.scrapeStatus?.steamgriddb_configured) n++;
+  return n;
+});
+
+const reportSummary = computed(() => {
+  const r = app.scrapeReport as ScrapeReport | null;
+  if (!r) return null;
+  return [
+    { key: "attempted", n: r.attempted ?? 0 },
+    { key: "updated", n: r.updated ?? 0 },
+    { key: "media", n: r.media ?? 0 },
+    { key: "skipped", n: r.skipped ?? 0 },
+    { key: "not_found", n: r.not_found ?? 0 },
+  ];
+});
+
+const reportSources = computed(() => {
+  const sources = app.scrapeReport?.sources;
+  if (!sources) return [];
+  return Object.entries(sources).map(([name, n]) => ({ name, n }));
+});
+
 watch(
   () => app.scrapePlatformOptions,
   (opts) => {
@@ -48,9 +76,10 @@ watch(
   { immediate: true },
 );
 
-function openModal() {
+function openModal(platformId?: string) {
   fields.title_zh = false;
   scope.value = "missing";
+  if (platformId) app.scrapePlatformId = platformId;
   showModal.value = true;
 }
 
@@ -66,43 +95,149 @@ async function confirmScrape() {
   });
 }
 
+async function scrapeMissingCovers(p: Platform) {
+  app.scrapePlatformId = p.id;
+  await app.runScrape("batch", undefined, {
+    platform_id: p.id,
+    only_missing: true,
+    write_mode: "update",
+    fields: {
+      title_zh: false,
+      title_en: true,
+      description: true,
+      developer: true,
+      box: true,
+      screenshot: true,
+      title: true,
+      logo: true,
+    },
+  });
+}
+
 const progressPct = computed(() => Math.round(Math.min(1, Math.max(0, app.jobProgress)) * 100));
 </script>
 
 <template>
   <section class="panel scrape">
-    <p class="lead">{{ app.t("scrape.desc") }}</p>
+    <div class="scrape-head">
+      <div>
+        <h2>{{ app.t("scrape.title") }}</h2>
+        <p class="lead">{{ app.t("scrape.desc") }}</p>
+      </div>
+      <div class="head-actions">
+        <button
+          v-if="pendingEn > 0"
+          class="pill ghost"
+          @click="app.go('settings', 'translate')"
+        >
+          <n-icon :component="LanguageOutline" :size="18" />
+          <span>{{ app.t("scrape.goTranslate") }}</span>
+        </button>
+        <button class="pill ghost" @click="app.go('settings', 'providers')">
+          <n-icon :component="SettingsOutline" :size="18" />
+          <span>{{ app.t("scrape.goProviders") }}</span>
+        </button>
+      </div>
+    </div>
+
     <div class="stat-row scrape-stats">
-      <div class="stat">
-        <span>{{ app.scrapeStatus?.missing_covers ?? "—" }}</span>
+      <div class="stat" :class="{ warn: missingCovers > 0 }">
+        <span>{{ missingCovers }}</span>
         <label>{{ app.t("scrape.missingCovers") }}</label>
       </div>
+      <div class="stat" :class="{ warn: pendingEn > 0 }">
+        <span>{{ pendingEn }}</span>
+        <label>{{ app.t("scrape.pendingEn") }}</label>
+      </div>
       <div class="stat wide">
+        <span>{{ sourcesReady }}</span>
         <label>{{ app.t("scrape.sourcesReady") }}</label>
         <div class="source-chips">
-          <n-tag size="small" round :type="app.scrapeStatus?.igdb_configured ? 'success' : 'default'">
+          <n-tag
+            size="small"
+            round
+            :type="app.scrapeStatus?.igdb_configured ? 'success' : 'default'"
+            class="source-chip"
+            @click="app.go('settings', 'providers')"
+          >
             {{ app.t("scrape.sourceIGDB") }}
           </n-tag>
-          <n-tag size="small" round :type="app.scrapeStatus?.screenscraper_configured ? 'success' : 'default'">
+          <n-tag
+            size="small"
+            round
+            :type="app.scrapeStatus?.screenscraper_configured ? 'success' : 'default'"
+            class="source-chip"
+            @click="app.go('settings', 'providers')"
+          >
             {{ app.t("scrape.sourceSS") }}
           </n-tag>
-          <n-tag size="small" round :type="app.scrapeStatus?.steamgriddb_configured ? 'success' : 'default'">
+          <n-tag
+            size="small"
+            round
+            :type="app.scrapeStatus?.steamgriddb_configured ? 'success' : 'default'"
+            class="source-chip"
+            @click="app.go('settings', 'providers')"
+          >
             {{ app.t("scrape.sourceSGDB") }}
           </n-tag>
         </div>
       </div>
     </div>
+
     <p v-if="!app.anyScrapeConfigured" class="err">{{ app.t("scrape.notConfigured") }}</p>
-    <p v-else-if="!app.scrapePlatformOptions.length" class="err">{{ app.t("scrape.noPlatforms") }}</p>
-    <div class="actions scrape-actions">
-      <button
-        class="pill"
-        :disabled="app.busy || !app.anyScrapeConfigured || !app.scrapePlatformOptions.length"
-        @click="openModal"
-      >
-        <n-icon :component="ColorWandOutline" :size="18" />
-        <span>{{ app.t("scrape.run") }}</span>
-      </button>
+    <p v-else-if="!app.romPlatforms.length" class="err">{{ app.t("scrape.noPlatforms") }}</p>
+
+    <div class="workbench">
+      <div class="block-head">
+        <h3>{{ app.t("scrape.platforms") }}</h3>
+        <button
+          class="pill"
+          :disabled="app.busy || !app.anyScrapeConfigured || !app.romPlatforms.length"
+          @click="openModal()"
+        >
+          <n-icon :component="ColorWandOutline" :size="18" />
+          <span>{{ app.t("scrape.run") }}</span>
+        </button>
+      </div>
+      <div v-if="!app.romPlatforms.length" class="empty">{{ app.t("scrape.noPlatforms") }}</div>
+      <div v-else class="platform-list">
+        <div v-for="p in app.romPlatforms" :key="p.id" class="platform-row">
+          <div class="platform-info">
+            <strong>{{ p.name }}</strong>
+            <div class="platform-tags">
+              <n-tag size="tiny" round>{{ app.t("settings.llmRomCount", { n: p.rom_count ?? 0 }) }}</n-tag>
+              <n-tag v-if="(p.pending_en ?? 0) > 0" size="tiny" round type="warning">
+                {{ app.t("settings.llmPendingEn", { n: p.pending_en ?? 0 }) }}
+              </n-tag>
+              <n-tag v-if="(p.missing_covers ?? 0) > 0" size="tiny" round type="warning">
+                {{ app.t("scrape.missingCoversCount", { n: p.missing_covers ?? 0 }) }}
+              </n-tag>
+            </div>
+          </div>
+          <div class="platform-actions">
+            <n-button
+              size="small"
+              secondary
+              :disabled="app.busy || !app.anyScrapeConfigured || !(p.missing_covers ?? 0)"
+              @click="scrapeMissingCovers(p)"
+            >
+              {{ app.t("scrape.runMissing") }}
+            </n-button>
+            <n-button
+              size="small"
+              type="primary"
+              secondary
+              :disabled="app.busy || !app.anyScrapeConfigured"
+              @click="openModal(p.id)"
+            >
+              <template #icon>
+                <n-icon :component="ColorWandOutline" />
+              </template>
+              {{ app.t("scrape.run") }}
+            </n-button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-if="app.busy" class="progress-block">
@@ -116,19 +251,30 @@ const progressPct = computed(() => Math.round(Math.min(1, Math.max(0, app.jobPro
       <small>{{ app.t("scrape.progress") }}</small>
     </div>
 
-    <div v-if="app.scrapeReport" class="report">
+    <div v-if="reportSummary" class="report">
       <h3>{{ app.t("scrape.lastReport") }}</h3>
-      <pre>{{ JSON.stringify(app.scrapeReport, null, 2) }}</pre>
+      <div class="report-grid">
+        <div v-for="item in reportSummary" :key="item.key" class="report-cell">
+          <span>{{ item.n }}</span>
+          <label>{{ app.t(`scrape.report.${item.key}`) }}</label>
+        </div>
+      </div>
+      <div v-if="reportSources.length" class="source-chips report-sources">
+        <n-tag v-for="s in reportSources" :key="s.name" size="small" round>
+          {{ s.name }}: {{ s.n }}
+        </n-tag>
+      </div>
     </div>
+
     <div class="report">
       <h3>{{ app.t("scrape.failures") }}</h3>
       <div v-if="!app.scrapeFailures.length" class="empty">{{ app.t("scrape.noFailures") }}</div>
       <ul v-else class="job-list">
         <li v-for="f in app.scrapeFailures" :key="`${f.game_id}-${f.filename}`">
-          <div class="job-info">
+          <button class="failure-main" type="button" @click="app.openGameById(f.game_id)">
             <strong>#{{ f.game_id }} {{ f.filename }}</strong>
             <small>{{ f.kind }}: {{ f.message }}</small>
-          </div>
+          </button>
           <n-button size="tiny" secondary :disabled="app.busy" @click="app.runScrape('one', f.game_id)">
             {{ app.t("scrape.retryFailed") }}
           </n-button>
@@ -191,8 +337,89 @@ const progressPct = computed(() => Math.round(Math.min(1, Math.max(0, app.jobPro
 </template>
 
 <style scoped>
-.scrape-actions {
+.scrape-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.scrape-head h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+  font-weight: 650;
+}
+
+.scrape-head .lead {
+  margin: 0;
+}
+
+.head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.workbench {
+  margin: 1.25rem 0;
+  padding: 1rem 1.05rem;
+  border-radius: 1rem;
+  background: hsl(var(--card) / 0.55);
+  border: 1px solid hsl(var(--border) / 0.55);
+}
+
+.block-head {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.block-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.platform-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.platform-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.85rem;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.platform-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.platform-info strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.platform-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.platform-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .progress-block {
@@ -243,6 +470,10 @@ const progressPct = computed(() => Math.round(Math.min(1, Math.max(0, app.jobPro
   margin-top: 0.45rem;
 }
 
+.source-chip {
+  cursor: pointer;
+}
+
 .source-chips :deep(.n-tag) {
   font-size: 0.75rem;
   line-height: 1.2;
@@ -250,8 +481,67 @@ const progressPct = computed(() => Math.round(Math.min(1, Math.max(0, app.jobPro
   padding: 0.15rem 0.55rem;
 }
 
-.stat.wide > span {
-  display: none;
+.stat.wide {
+  grid-column: span 2;
+}
+
+@media (min-width: 720px) {
+  .scrape-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+}
+
+.report-cell {
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.report-cell span {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-cell label {
+  opacity: 0.65;
+  font-size: 0.78rem;
+}
+
+.report-sources {
+  margin-top: 0.75rem;
+}
+
+.failure-main {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+}
+
+.failure-main strong,
+.failure-main small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.failure-main:hover strong {
+  color: hsl(var(--primary));
 }
 
 .field-grid {

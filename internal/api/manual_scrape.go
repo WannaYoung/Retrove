@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -160,7 +161,48 @@ func (s *Server) applyGameScrape(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "scrape", msg)
 		return
 	}
+	if err := s.syncPegasusFields(g, updated); err != nil {
+		revert := library.UpdateGameInput{
+			TitleZH:     &g.TitleZH,
+			Description: &g.Description,
+			Developer:   &g.Developer,
+		}
+		_, _ = s.lib.UpdateGame(id, revert)
+		var conflict *pegasus.ConflictError
+		if errors.As(err, &conflict) {
+			writeError(w, http.StatusConflict, "conflict", conflict.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal", err.Error())
+		return
+	}
+	updated, err = s.lib.GetGame(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "读取游戏失败")
+		return
+	}
+	for _, kind := range []string{"box", "logo"} {
+		if gameMediaPath(g, kind) == gameMediaPath(updated, kind) {
+			continue
+		}
+		if err := s.mirrorSavedPegasusMedia(updated, kind); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", err.Error())
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, updated)
+}
+
+func gameMediaPath(g library.Game, kind string) string {
+	for _, m := range g.Media {
+		if m.Kind == kind && strings.TrimSpace(m.Path) != "" {
+			return m.Path
+		}
+	}
+	if kind == "box" {
+		return strings.TrimSpace(g.CoverPath)
+	}
+	return ""
 }
 
 func (s *Server) browseGameMedia(w http.ResponseWriter, r *http.Request) {

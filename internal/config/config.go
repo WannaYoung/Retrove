@@ -59,6 +59,12 @@ func ConfigPath() string {
 	if path := os.Getenv("RETROVE_CONFIG"); path != "" {
 		return path
 	}
+	// Prefer repo-relative path for local runs; fall back to container layout.
+	for _, candidate := range []string{"app/config/config.yaml", "/app/config/config.yaml"} {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
 	return "app/config/config.yaml"
 }
 
@@ -179,7 +185,15 @@ func (c Config) Save() error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("mkdir config: %w", err)
 	}
-	data, err := yaml.Marshal(c)
+	// Persist Docker-friendly path defaults so local RETROVE_* overrides
+	// (e.g. make dev-backend) are not written back into config.yaml.
+	out := c
+	d := defaults()
+	out.Server.Listen = d.Server.Listen
+	out.Paths = d.Paths
+	out.SQLite = d.SQLite
+	out.Export = d.Export
+	data, err := yaml.Marshal(out)
 	if err != nil {
 		return err
 	}

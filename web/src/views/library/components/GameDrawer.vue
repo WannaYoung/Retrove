@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { NButton, NForm, NFormItem, NIcon, NInput, NInputNumber, NSwitch } from "naive-ui";
+import { NButton, NForm, NFormItem, NIcon, NInput, NInputNumber } from "naive-ui";
 import {
   CloseOutline,
   ColorWandOutline,
   CloudUploadOutline,
-  LockClosedOutline,
   SaveOutline,
 } from "@vicons/ionicons5";
 import {
@@ -109,12 +108,6 @@ async function onFileChange(kind: MediaKind, ev: Event) {
       <n-form-item :label="app.t('library.titleZh')">
         <n-input v-model:value="app.editTitleZh" />
       </n-form-item>
-      <n-form-item :label="app.t('library.lockTitle')">
-        <div class="lock-row">
-          <n-icon :component="LockClosedOutline" :size="16" />
-          <n-switch v-model:value="app.editLocked" />
-        </div>
-      </n-form-item>
       <n-form-item :label="app.t('library.titleEn')">
         <n-input v-model:value="app.editTitleEn" />
       </n-form-item>
@@ -126,12 +119,6 @@ async function onFileChange(kind: MediaKind, ev: Event) {
       </n-form-item>
       <n-form-item :label="app.t('library.description')">
         <n-input v-model:value="app.editDescription" type="textarea" :rows="5" />
-      </n-form-item>
-      <n-form-item :label="app.t('library.lockDescription')">
-        <div class="lock-row">
-          <n-icon :component="LockClosedOutline" :size="16" />
-          <n-switch v-model:value="app.editDescLocked" />
-        </div>
       </n-form-item>
 
       <div class="media-block">
@@ -264,12 +251,6 @@ async function onFileChange(kind: MediaKind, ev: Event) {
 .drawer-actions {
   display: grid;
   gap: 0.55rem;
-}
-
-.lock-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 .media-block {

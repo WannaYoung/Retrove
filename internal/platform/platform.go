@@ -23,6 +23,7 @@ type Definition struct {
 	SortOrder       int      `yaml:"sort_order" json:"sort_order"`
 	ROMCount        int      `yaml:"-" json:"rom_count,omitempty"`
 	PendingEN       int      `yaml:"-" json:"pending_en,omitempty"`
+	MissingCovers   int      `yaml:"-" json:"missing_covers,omitempty"`
 }
 
 type File struct {
@@ -97,7 +98,11 @@ func List(db *sql.DB) ([]Definition, error) {
 			(SELECT COUNT(*) FROM rom_files r WHERE r.platform_id=p.id AND r.missing=0) AS rom_count,
 			(SELECT COUNT(DISTINCT g.id) FROM games g
 			 JOIN rom_files r ON r.game_id=g.id AND r.missing=0
-			 WHERE g.platform_id=p.id AND TRIM(g.title_zh) != '' AND TRIM(g.title_en) = '') AS pending_en
+			 WHERE g.platform_id=p.id AND TRIM(g.title_zh) != '' AND TRIM(g.title_en) = '') AS pending_en,
+			(SELECT COUNT(*) FROM games g
+			 JOIN rom_files r ON r.game_id=g.id AND r.missing=0
+			 WHERE g.platform_id=p.id
+			   AND NOT EXISTS (SELECT 1 FROM media_assets m WHERE m.game_id=g.id AND m.kind='box')) AS missing_covers
 		FROM platforms p
 		ORDER BY p.sort_order, p.directory`)
 	if err != nil {
@@ -109,7 +114,7 @@ func List(db *sql.DB) ([]Definition, error) {
 	for rows.Next() {
 		var p Definition
 		var ext string
-		if err := rows.Scan(&p.ID, &p.Name, &p.Directory, &ext, &p.HashMode, &p.RenamePolicy, &p.ScreenScraperID, &p.IGDBID, &p.ScrapeAs, &p.SortOrder, &p.ROMCount, &p.PendingEN); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Directory, &ext, &p.HashMode, &p.RenamePolicy, &p.ScreenScraperID, &p.IGDBID, &p.ScrapeAs, &p.SortOrder, &p.ROMCount, &p.PendingEN, &p.MissingCovers); err != nil {
 			return nil, err
 		}
 		if ext != "" {

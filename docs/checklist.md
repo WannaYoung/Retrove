@@ -77,7 +77,7 @@ Also done: backend `:5080`, frontend `:5180`; single-user register/login (passwo
 - [x] Pegasus import overwrites Chinese title, description, and developer; copies `media/{ROM stem}/boxFront.*`, `logo.*`, and `video.*`; the detail panel can play and replace the preview video
 - [x] `PATCH /api/v1/games/{id}` writes Chinese title, description, and developer back to Pegasus metadata; host platforms also rename the ROM and media folder; arcade does not rename
 - [x] Replacing box / logo in the detail panel writes the Pegasus media folder; `POST /api/v1/jobs/import-pegasus`
-- [x] Detail sidebar editable + lockable (dedicated alias workbench polish later)
+- [x] Detail sidebar editable (title / description / media; Pegasus write-back)
 
 **Done when:** After importing an FC Pegasus tree, Chinese titles, blurbs, box art, logos, and preview videos match the files; a later import replaces those fields.
 
@@ -93,7 +93,7 @@ Also done: backend `:5080`, frontend `:5180`; single-user register/login (passwo
 - [x] Settings: read-only paths + appearance (language/theme); SS credentials deferred to Phase 5
 - [x] Jobs page: list + status
 
-**Done when:** Imported library browsable without scraping; Chinese titles editable and lockable by hand.
+**Done when:** Imported library browsable without scraping; Chinese titles editable by hand.
 
 ---
 
@@ -156,8 +156,8 @@ Also done: backend `:5080`, frontend `:5180`; single-user register/login (passwo
 - [ ] Unit tests for critical paths: hash rename merge, lock vs scrape, dictionary priority
 - [ ] Log levels; redact secrets
 - [ ] Backup notes: `config/retrove.db` + `config` + (optional) `data/media`
-- [ ] Multi-stage image; frontend static via Go embed or sidecar nginx (pick one in deploy guide)
-- [ ] Perf: large-library scan must not freeze API (worker goroutine or in-process queue)
+- [x] Multi-stage image; SPA embedded in Go; container UI `:5180`, API `:5080`; entrypoint applies `PUID`/`PGID`/`TZ` and seeds `platforms.yaml` / `config.yaml` when missing
+- [x] In-process job workers (scan / scrape / import) so HTTP stays responsive
 
 **Done when:** Following [deployment.md](./deployment.md), a from-scratch deploy can demo “scan → import/dictionary → scrape → export”.
 

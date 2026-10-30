@@ -11,6 +11,8 @@ import (
 	"retrove/internal/store"
 )
 
+const uiListen = ":5180"
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -34,12 +36,27 @@ func main() {
 		log.Fatalf("sync platforms: %v", err)
 	}
 
-	srv := &http.Server{
-		Addr:    cfg.Server.Listen,
-		Handler: api.New(cfg, db).Handler(),
+	srv := api.New(cfg, db)
+	apiHandler := srv.Handler()
+
+	if admin, ok := srv.AdminHandler(); ok {
+		go func() {
+			log.Printf("retrove api on %s (roms=%s data=%s platforms=%d)", cfg.Server.Listen, cfg.Paths.Roms, cfg.Paths.Data, len(defs))
+			if err := http.ListenAndServe(cfg.Server.Listen, apiHandler); err != nil {
+				log.Println(err)
+				os.Exit(1)
+			}
+		}()
+		log.Printf("retrove ui on %s (/api -> %s)", uiListen, cfg.Server.Listen)
+		if err := http.ListenAndServe(uiListen, admin); err != nil {
+			log.Println(err)
+			os.Exit(1)
+		}
+		return
 	}
+
 	log.Printf("retrove listening on %s (roms=%s data=%s platforms=%d)", cfg.Server.Listen, cfg.Paths.Roms, cfg.Paths.Data, len(defs))
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := http.ListenAndServe(cfg.Server.Listen, apiHandler); err != nil {
 		log.Println(err)
 		os.Exit(1)
 	}

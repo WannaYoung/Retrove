@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NButton, NIcon, NInput, NSelect, NTag } from "naive-ui";
-import { AlertCircleOutline, LockClosedOutline, SearchOutline } from "@vicons/ionicons5";
+import { AlertCircleOutline, SearchOutline } from "@vicons/ionicons5";
 import { mediaURL } from "../../api/client";
 import { tileLetter, useAppStore } from "../app/composables/useApp";
 
@@ -47,12 +47,6 @@ const app = useAppStore();
           <small>{{ g.platform_name }}</small>
         </div>
         <div class="badges">
-          <n-tag v-if="g.title_zh_locked" size="tiny" round>
-            <template #icon>
-              <n-icon :component="LockClosedOutline" />
-            </template>
-            {{ app.t("library.locked") }}
-          </n-tag>
           <n-tag v-if="g.missing" size="tiny" type="warning" round>
             <template #icon>
               <n-icon :component="AlertCircleOutline" />
@@ -85,8 +79,8 @@ const app = useAppStore();
 
 .cover-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
-  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.75rem;
 }
 
 .cover {
@@ -97,7 +91,7 @@ const app = useAppStore();
   cursor: pointer;
   font: inherit;
   color: inherit;
-  border-radius: 1.1rem;
+  border-radius: 0.55rem;
   overflow: hidden;
   background: hsl(var(--card) / 0.65);
   border: 1px solid hsl(var(--border) / 0.55);
@@ -149,7 +143,8 @@ const app = useAppStore();
 
 @media (min-width: 720px) {
   .cover-grid {
-    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 0.85rem;
   }
 }
 </style>

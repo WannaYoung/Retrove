@@ -10,15 +10,20 @@ export type Platform = {
   scrape_as?: string;
   rom_count?: number;
   pending_en?: number;
+  missing_covers?: number;
 };
 
 export type Stats = {
   platforms: number;
+  platforms_with_roms: number;
   games: number;
   roms: number;
   missing: number;
   unidentified: number;
   locked_titles: number;
+  missing_covers: number;
+  pending_en: number;
+  missing_description: number;
 };
 
 export type MediaAsset = {
@@ -159,7 +164,6 @@ export type Settings = {
   steamgriddb_configured: boolean;
   any_scrape_configured: boolean;
   llm_configured?: boolean;
-  allow_rom_rename: boolean;
 };
 
 export type TranslateReport = {
@@ -250,10 +254,11 @@ export const api = {
   logout: () => request<{ status: string }>("/api/v1/auth/logout", { method: "POST" }),
   platforms: () => request<{ items: Platform[] }>("/api/v1/platforms"),
   stats: () => request<Stats>("/api/v1/library/stats"),
-  games: (params: { platform?: string; q?: string; limit?: number }) => {
+  games: (params: { platform?: string; q?: string; limit?: number; sort?: string }) => {
     const q = new URLSearchParams();
     if (params.platform) q.set("platform", params.platform);
     if (params.q) q.set("q", params.q);
+    if (params.sort) q.set("sort", params.sort);
     q.set("limit", String(params.limit ?? 200));
     return request<{ items: Game[] }>(`/api/v1/games?${q}`);
   },

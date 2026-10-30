@@ -31,7 +31,7 @@ func (s *Server) listGames(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	offset, _ := strconv.Atoi(q.Get("offset"))
-	items, err := s.lib.ListGames(q.Get("platform"), q.Get("q"), limit, offset)
+	items, err := s.lib.ListGames(q.Get("platform"), q.Get("q"), q.Get("sort"), limit, offset)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "读取游戏失败")
 		return
@@ -157,7 +157,13 @@ func (s *Server) startImportPegasus(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) runImportPegasus(jobID int64) {
 	_ = s.jobs.Update(jobID, jobs.StatusRunning, 0, "导入 Pegasus", nil)
-	rep, err := pegasus.ImportAll(s.db, s.cfg.Paths.Roms, s.cfg.Paths.Data)
+	rep, err := pegasus.ImportAll(s.db, s.cfg.Paths.Roms, s.cfg.Paths.Data, func(done, total int, msg string) {
+		progress := 0.0
+		if total > 0 {
+			progress = float64(done) / float64(total)
+		}
+		_ = s.jobs.Update(jobID, jobs.StatusRunning, progress, msg, nil)
+	})
 	if err != nil {
 		_ = s.jobs.Update(jobID, jobs.StatusFailed, 1, err.Error(), nil)
 		return
@@ -208,6 +214,5 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		"steamgriddb_configured":   s.cfg.SteamGridDBConfigured(),
 		"any_scrape_configured":    s.cfg.AnyScrapeSourceConfigured(),
 		"llm_configured":           s.cfg.LLMConfigured(),
-		"allow_rom_rename":         s.cfg.Security.AllowROMRename,
 	})
 }

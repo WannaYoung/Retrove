@@ -1,7 +1,18 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { NButton, NForm, NFormItem, NIcon, NInput, NModal, NSelect, NTabPane, NTabs, NTag } from "naive-ui";
+import {
+  NButton,
+  NForm,
+  NFormItem,
+  NIcon,
+  NInput,
+  NModal,
+  NSelect,
+  NTabPane,
+  NTabs,
+  NTag,
+} from "naive-ui";
 import {
   CloudDownloadOutline,
   LanguageOutline,
@@ -24,6 +35,39 @@ const settingsTab = computed<SettingsTab>({
     void router.push({ name: "settings", params: { tab } });
   },
 });
+
+const progressPct = computed(() => Math.round(Math.min(1, Math.max(0, app.jobProgress)) * 100));
+
+const pathRows = computed(() => {
+  const paths = app.settings?.paths;
+  if (!paths) return [];
+  return [
+    { key: "roms", labelKey: "settings.pathRoms", value: paths.roms },
+    { key: "data", labelKey: "settings.pathData", value: paths.data },
+    { key: "config", labelKey: "settings.pathConfig", value: paths.config },
+    { key: "sqlite", labelKey: "settings.pathSqlite", value: paths.sqlite },
+    { key: "export", labelKey: "settings.pathExport", value: paths.export },
+  ];
+});
+
+function jobTypeLabel(type: string) {
+  const key = `jobs.types.${type}`;
+  const label = app.t(key);
+  return label === key ? type : label;
+}
+
+function jobStatusLabel(status: string) {
+  const key = `jobs.status.${status}`;
+  const label = app.t(key);
+  return label === key ? status : label;
+}
+
+function jobStatusType(status: string): "success" | "error" | "info" | "default" {
+  if (status === "succeeded") return "success";
+  if (status === "failed") return "error";
+  if (status === "running") return "info";
+  return "default";
+}
 </script>
 
 <template>
@@ -66,7 +110,16 @@ const settingsTab = computed<SettingsTab>({
               <span>{{ app.t("scan.runImport") }}</span>
             </button>
           </div>
-          <p v-if="app.busy" class="busy">{{ app.busyLabel }}</p>
+          <div v-if="app.busy" class="progress-block">
+            <div class="progress-head">
+              <p class="busy">{{ app.busyLabel || app.t("scan.running") }}</p>
+              <strong>{{ progressPct }}%</strong>
+            </div>
+            <div class="progress-bar" role="progressbar" :aria-valuenow="progressPct" aria-valuemin="0" aria-valuemax="100">
+              <i :style="{ width: `${progressPct}%` }" />
+            </div>
+            <small>{{ app.t("scan.progress") }}</small>
+          </div>
           <details v-if="app.lastReport" class="report-fold">
             <summary>{{ app.t("scan.lastReport") }}</summary>
             <pre>{{ JSON.stringify(app.lastReport, null, 2) }}</pre>
@@ -78,10 +131,10 @@ const settingsTab = computed<SettingsTab>({
             <ul v-else class="job-list compact">
               <li v-for="j in app.jobs" :key="j.id">
                 <div class="job-info">
-                  <strong>#{{ j.id }} {{ j.type }}</strong>
-                  <small>{{ j.message || j.status }}</small>
+                  <strong>#{{ j.id }} {{ jobTypeLabel(j.type) }}</strong>
+                  <small>{{ j.message || jobStatusLabel(j.status) }}</small>
                 </div>
-                <n-tag size="small" round>{{ j.status }}</n-tag>
+                <n-tag size="small" round :type="jobStatusType(j.status)">{{ jobStatusLabel(j.status) }}</n-tag>
               </li>
             </ul>
           </div>
@@ -180,6 +233,19 @@ const settingsTab = computed<SettingsTab>({
               <summary>{{ app.t("scan.lastReport") }}</summary>
               <pre>{{ JSON.stringify(app.lastReport, null, 2) }}</pre>
             </details>
+          </div>
+        </div>
+      </n-tab-pane>
+
+      <n-tab-pane name="paths" :tab="app.t('settings.paths')">
+        <div class="settings-block">
+          <p class="settings-note">{{ app.t("settings.pathsHint") }}</p>
+          <div v-if="!pathRows.length" class="empty">{{ app.t("app.loading") }}</div>
+          <div v-else class="path-list">
+            <div v-for="row in pathRows" :key="row.key" class="settings-field path-field">
+              <span>{{ app.t(row.labelKey) }}</span>
+              <code>{{ row.value || "—" }}</code>
+            </div>
           </div>
         </div>
       </n-tab-pane>
@@ -422,6 +488,27 @@ const settingsTab = computed<SettingsTab>({
   font-size: 0.92rem;
 }
 
+.path-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.path-field {
+  align-items: flex-start;
+}
+
+.path-field code {
+  display: block;
+  max-width: min(100%, 420px);
+  margin: 0;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.55rem;
+  background: hsl(var(--muted) / 0.45);
+  font-size: 0.8rem;
+  word-break: break-all;
+  opacity: 0.9;
+}
+
 .settings-note {
   margin: 0;
   opacity: 0.7;
@@ -454,6 +541,46 @@ const settingsTab = computed<SettingsTab>({
 .model-select {
   flex: 1 1 180px;
   min-width: 0;
+}
+
+.progress-block {
+  padding: 1rem 1.05rem;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border) / 0.65);
+  background: hsl(var(--card) / 0.55);
+}
+
+.progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.progress-head .busy {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.progress-head strong {
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--primary));
+}
+
+.progress-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: hsl(var(--muted) / 0.7);
+  overflow: hidden;
+  margin: 0.65rem 0 0.35rem;
+}
+
+.progress-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
+  transition: width 200ms ease;
 }
 
 .jobs-section {

@@ -258,7 +258,9 @@ Container working directory is `/app`; persistent dirs hang under `/app/`:
 Notes:
 
 - Source lives at repo root: `cmd/`, `internal/`, `web/`. `app/` is runtime-only (`config/`, `data/`, `roms/`).  
-- Image ships the binary; Compose mounts only these three dirs—do not bind-mount the whole repo.  
+- Image ships the Go binary (admin SPA embedded) plus default `platforms.yaml` / `config.example.yaml`; Compose mounts only these three dirs—do not bind-mount the whole repo.  
+- On first boot, the entrypoint seeds `platforms.yaml` / `config.yaml` into the mounted volume when missing.  
+- In-container admin UI listens on `:5180` (published); API on `:5080` (internal; UI forwards `/api`).  
 - Docs live in **`docs/`**. Local start via root **`Makefile`**.  
 - Exports always go to **`/app/data/export`**. Media under **`/app/data/media`**.
 

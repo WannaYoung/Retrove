@@ -65,7 +65,9 @@ make config
 make docker-up
 ```
 
-Compose 会挂载 `./app/config`、`./app/data`、`./app/roms`。默认端口：**5080**。
+或直接拉 Hub 镜像：`docker pull wannayoung/retrove:latest`（`linux/amd64` + `linux/arm64`）。
+
+Compose 会挂载 `./app/config`、`./app/data`、`./app/roms`。与本地一致：管理台 **5180**（对外映射），API **5080**（仅容器内，`/api` 由 UI 转发）。`PUID`/`PGID`/`TZ` 由 entrypoint 生效；缺省时会种子写入 `platforms.yaml` / `config.yaml`。
 
 ## 配置
 

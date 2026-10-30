@@ -8,12 +8,16 @@ import (
 )
 
 type Stats struct {
-	Platforms    int `json:"platforms"`
-	Games        int `json:"games"`
-	ROMs         int `json:"roms"`
-	Missing      int `json:"missing"`
-	Unidentified int `json:"unidentified"`
-	LockedTitles int `json:"locked_titles"`
+	Platforms          int `json:"platforms"`
+	PlatformsWithROMs  int `json:"platforms_with_roms"`
+	Games              int `json:"games"`
+	ROMs               int `json:"roms"`
+	Missing            int `json:"missing"`
+	Unidentified       int `json:"unidentified"`
+	LockedTitles       int `json:"locked_titles"`
+	MissingCovers      int `json:"missing_covers"`
+	PendingEN          int `json:"pending_en"`
+	MissingDescription int `json:"missing_description"`
 }
 
 type MediaAsset struct {
@@ -50,13 +54,37 @@ func New(db *sql.DB) *Service { return &Service{db: db} }
 
 func (s *Service) Stats() (Stats, error) {
 	var st Stats
-	_ = s.db.QueryRow(`SELECT COUNT(*) FROM platforms`).Scan(&st.Platforms)
-	_ = s.db.QueryRow(`SELECT COUNT(*) FROM games`).Scan(&st.Games)
-	_ = s.db.QueryRow(`SELECT COUNT(*) FROM rom_files`).Scan(&st.ROMs)
-	_ = s.db.QueryRow(`SELECT COUNT(*) FROM rom_files WHERE missing=1`).Scan(&st.Missing)
-	_ = s.db.QueryRow(`SELECT COUNT(*) FROM rom_files WHERE game_id IS NULL OR game_id IN (SELECT id FROM games WHERE title_zh='' OR title_zh IS NULL)`).Scan(&st.Unidentified)
-	_ = s.db.QueryRow(`SELECT COUNT(*) FROM games WHERE title_zh_locked=1`).Scan(&st.LockedTitles)
-	return st, nil
+	err := s.db.QueryRow(`
+		SELECT
+			(SELECT COUNT(*) FROM platforms),
+			(SELECT COUNT(*) FROM platforms p WHERE EXISTS (
+				SELECT 1 FROM rom_files r WHERE r.platform_id=p.id AND r.missing=0)),
+			(SELECT COUNT(*) FROM games),
+			(SELECT COUNT(*) FROM rom_files),
+			(SELECT COUNT(*) FROM rom_files WHERE missing=1),
+			(SELECT COUNT(*) FROM games WHERE TRIM(COALESCE(title_zh,'')) = '') +
+			(SELECT COUNT(*) FROM rom_files WHERE game_id IS NULL),
+			(SELECT COUNT(*) FROM games WHERE title_zh_locked=1),
+			(SELECT COUNT(*) FROM games g
+			 JOIN rom_files r ON r.game_id=g.id AND r.missing=0
+			 WHERE NOT EXISTS (SELECT 1 FROM media_assets m WHERE m.game_id=g.id AND m.kind='box')),
+			(SELECT COUNT(*) FROM games g
+			 JOIN rom_files r ON r.game_id=g.id AND r.missing=0
+			 WHERE TRIM(g.title_zh) != '' AND TRIM(g.title_en) = ''),
+			(SELECT COUNT(*) FROM games WHERE TRIM(COALESCE(description,'')) = '')
+	`).Scan(
+		&st.Platforms,
+		&st.PlatformsWithROMs,
+		&st.Games,
+		&st.ROMs,
+		&st.Missing,
+		&st.Unidentified,
+		&st.LockedTitles,
+		&st.MissingCovers,
+		&st.PendingEN,
+		&st.MissingDescription,
+	)
+	return st, err
 }
 
 func (s *Service) MissingMediaCount() (int, error) {
@@ -68,7 +96,7 @@ func (s *Service) MissingMediaCount() (int, error) {
 	return n, err
 }
 
-func (s *Service) ListGames(platformID, q string, limit, offset int) ([]Game, error) {
+func (s *Service) ListGames(platformID, q, sort string, limit, offset int) ([]Game, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -83,6 +111,10 @@ func (s *Service) ListGames(platformID, q string, limit, offset int) ([]Game, er
 		like := "%" + q + "%"
 		args = append(args, like, like, like, like)
 	}
+	order := "p.sort_order, g.title_zh"
+	if sort == "updated" {
+		order = "g.updated_at DESC, g.id DESC"
+	}
 	args = append(args, limit, offset)
 	sqlStr := fmt.Sprintf(`
 		SELECT g.id, g.platform_id, p.name, g.title_zh, g.title_en, g.description, g.developer,
@@ -93,8 +125,8 @@ func (s *Service) ListGames(platformID, q string, limit, offset int) ([]Game, er
 		JOIN platforms p ON p.id = g.platform_id
 		LEFT JOIN rom_files r ON r.game_id = g.id
 		WHERE %s
-		ORDER BY p.sort_order, g.title_zh
-		LIMIT ? OFFSET ?`, strings.Join(where, " AND "))
+		ORDER BY %s
+		LIMIT ? OFFSET ?`, strings.Join(where, " AND "), order)
 	rows, err := s.db.Query(sqlStr, args...)
 	if err != nil {
 		return nil, err

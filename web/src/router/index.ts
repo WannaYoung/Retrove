@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
 
-export const SETTINGS_TABS = ["appearance", "tasks", "translate", "providers"] as const;
+export const SETTINGS_TABS = ["appearance", "tasks", "translate", "providers", "paths"] as const;
 export type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 export function isSettingsTab(value: unknown): value is SettingsTab {

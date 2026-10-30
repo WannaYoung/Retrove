@@ -65,7 +65,9 @@ make config
 make docker-up
 ```
 
-Compose mounts `./app/config`, `./app/data`, and `./app/roms` into the container. Default port: **5080**.
+Or pull from Hub: `docker pull wannayoung/retrove:latest` (`linux/amd64` + `linux/arm64`).
+
+Compose mounts `./app/config`, `./app/data`, and `./app/roms`. Same as local: admin UI on **5180** (published), API on **5080** (internal; `/api` forwarded by the UI). `PUID`/`PGID`/`TZ` via entrypoint; missing `platforms.yaml` / `config.yaml` are seeded on first boot.
 
 ## Configuration
 

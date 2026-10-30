@@ -35,7 +35,7 @@ func TestScanRenameKeepsIdentity(t *testing.T) {
 	}
 
 	svc := New(db)
-	rep, err := svc.Run(Options{RomsRoot: roms})
+	rep, err := svc.Run(Options{RomsRoot: roms}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestScanRenameKeepsIdentity(t *testing.T) {
 	if err := os.Rename(oldPath, newPath); err != nil {
 		t.Fatal(err)
 	}
-	rep2, err := svc.Run(Options{RomsRoot: roms})
+	rep2, err := svc.Run(Options{RomsRoot: roms}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestZipContentHash(t *testing.T) {
 	}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(db).Run(Options{RomsRoot: filepath.Join(root, "roms")}); err != nil {
+	if _, err := New(db).Run(Options{RomsRoot: filepath.Join(root, "roms")}, nil); err != nil {
 		t.Fatal(err)
 	}
 	var sha1 string

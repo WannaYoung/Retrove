@@ -59,7 +59,7 @@ description: 经典 RPG
 	if len(col.Games) != 1 || col.Games[0].Title != "超时空之轮" {
 		t.Fatalf("%+v", col)
 	}
-	rep, err := ImportAll(db, root, filepath.Join(root, "data"))
+	rep, err := ImportAll(db, root, filepath.Join(root, "data"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ description: 旧简介
 	}
 
 	dataRoot := filepath.Join(root, "data")
-	rep, err := ImportAll(db, root, dataRoot)
+	rep, err := ImportAll(db, root, dataRoot, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ description: 旧简介
 	if err := os.WriteFile(filepath.Join(mediaDir, "boxFront.jpg"), []byte("box-b"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ImportAll(db, root, dataRoot); err != nil {
+	if _, err := ImportAll(db, root, dataRoot, nil); err != nil {
 		t.Fatal(err)
 	}
 	box, err = os.ReadFile(filepath.Join(dataRoot, "media", filepath.FromSlash(boxPath)))

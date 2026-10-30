@@ -3,7 +3,7 @@
 [中文](./部署指南.md)
 
 > Local development and Docker deploy. Design: [development.md](./development.md). Tasks: [checklist.md](./checklist.md).  
-> Directory layout, env vars, and recommended flows are fixed here; tweak commands as the project evolves, but keep mount conventions stable.
+> Mount layout (`/app/config`, `/app/data`, `/app/roms`) stays stable; ports and image tags track the implementation.
 
 ---
 
@@ -95,32 +95,33 @@ Also see committed `app/config/config.example.yaml` for optional IGDB / SteamGri
 
 | Variable | Meaning |
 |----------|---------|
-| `PUID` / `PGID` | UID/GID for mounted dirs (common on NAS) |
-| `TZ` | e.g. `Asia/Shanghai` |
+| `PUID` / `PGID` | UID/GID for mounted dirs (common on NAS); entrypoint drops privileges and chowns `/app/config` + `/app/data` |
+| `TZ` | e.g. `Asia/Shanghai` (requires tzdata in the image) |
 | `RETROVE_CONFIG` | Config path. Local default `./app/config/config.yaml`; container `/app/config/config.yaml` |
-| `RETROVE_LISTEN` | Listen address; local and container both `:5080` |
-| `RETROVE_ROMS` / `RETROVE_DATA` / `RETROVE_CONFIG_DIR` | Override yaml paths. `make backend` sets local `./app/...` |
+| `RETROVE_LISTEN` | Listen address, default `:5080` (usually unset) |
+| `RETROVE_ROMS` / `RETROVE_DATA` / `RETROVE_CONFIG_DIR` | Override yaml paths. `make backend` sets local `./app/...`; container should use `/app/...` |
 | `RETROVE_SQLITE` / `RETROVE_EXPORT` | Override DB file and export root |
 | `RETROVE_LOG_LEVEL` | Override log level |
 
 ---
 
-## 3. Docker deploy (target shape)
+## 3. Docker deploy (unified frontend + API)
 
 ### 3.1 Compose sketch
+
+Multi-stage image: build the Vue SPA, embed it into the Go binary; one process serves API and admin UI.
 
 ```yaml
 services:
   retrove:
-    image: retrove:local   # or build: .
+    image: wannayoung/retrove:latest   # or build: . / retrove:local
     working_dir: /app
     ports:
-      - "5080:5080"
+      - "5180:5180"   # admin UI; API stays :5080 inside, not published
     environment:
       TZ: Asia/Shanghai
       PUID: "1000"
       PGID: "1000"
-      RETROVE_CONFIG: /app/config/config.yaml
     volumes:
       - ./app/config:/app/config
       - ./app/data:/app/data
@@ -128,17 +129,17 @@ services:
     restart: unless-stopped
 ```
 
-Prefer one container: Go serves the API and runs the job queue in-process (goroutine workers). Frontend static assets via Go embed or reverse-proxy in the same image (pick one; prefer a single service port).
-
 ### 3.2 First boot
 
 ```bash
-mkdir -p app/config/dictionaries app/data/media app/data/export app/data/cache
-cp app/config/config.example.yaml app/config/config.yaml
-# Edit ScreenScraper credentials, ports, etc.
+mkdir -p app/config app/data app/roms
+# On first boot the entrypoint seeds platforms.yaml and config.yaml if missing.
+# Or copy the repo template first and edit secrets:
+#   cp app/config/config.example.yaml app/config/config.yaml
 
 docker compose up -d --build
-# Browser: http://localhost:5080 (API). For admin UI during development use make + http://127.0.0.1:5180
+# Browser: http://localhost:5180 (admin UI; /api forwarded to container :5080)
+# Health: curl -s http://127.0.0.1:5180/api/v1/health
 ```
 
 ### 3.3 Data & backup
@@ -194,8 +195,8 @@ make dev-backend
 make dev-frontend
 ```
 
-Health: `curl -s http://127.0.0.1:5080/api/v1/health`  
-UI: http://127.0.0.1:5180
+Local: API `curl -s http://127.0.0.1:5080/api/v1/health`, UI http://127.0.0.1:5180  
+Docker: http://127.0.0.1:5180 (UI; API `:5080` inside only)
 
 ### 4.3 Local vs Docker paths
 
@@ -228,7 +229,7 @@ make reset-db
 
 ### 4.5 Typical debug path
 
-1. `make dev-*`, sample with 1–2 platforms under `app/roms/SFC`, etc.  
+1. `make dev-backend` + `make dev-frontend`, sample with 1–2 platforms under `app/roms/SFC`, etc.  
 2. Trigger scan → confirm hashes in `rom_files`.  
 3. **Rename one zip** → scan again → same `sha1` row updates path (no new row).  
 4. Import that platform’s Pegasus metadata → Chinese title, description, box, logo, and preview video show on the detail page. Re-import replaces them.  
@@ -291,14 +292,16 @@ Point ROM path at `/app/data/roms` and place files there; still prefer a dedicat
 
 ## 8. Versioning & release (placeholder)
 
-- Image tags: `retrove:<version>`  
-- Before release, run the checklist “v1 acceptance” path  
+- Docker Hub: `wannayoung/retrove` (multi-arch `linux/amd64` + `linux/arm64`)
+- Tags: `0.1.0`, `latest` (same digest)
+- Pull: `docker pull wannayoung/retrove:0.1.0` or `wannayoung/retrove:latest`
+- Compose may use `image: wannayoung/retrove:latest` instead of local `build: .`
+- Before release, run the checklist “v1 acceptance” path
 - Changelog must note migrations that need manual steps (breaking migrations required)
 
 ---
 
 ## 9. Keeping docs fresh
 
-- Sync this file when adding env vars, ports, or mounts.  
-- When checklist phases finish, replace “TBD commands” here with real `make`/`docker` commands.  
+- Sync this file when adding env vars, ports, mounts, or image tags.  
 - Design-level changes: update [development.md](./development.md) first, then code and this guide.

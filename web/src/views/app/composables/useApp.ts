@@ -58,6 +58,7 @@ function createApp() {
   const stats = ref<Stats | null>(null);
   const platforms = ref<Platform[]>([]);
   const games = ref<Game[]>([]);
+  const recentGames = ref<Game[]>([]);
   const jobs = ref<Job[]>([]);
   const settings = ref<Settings | null>(null);
   const scrapeStatus = ref<ScrapeStatus | null>(null);
@@ -70,8 +71,6 @@ function createApp() {
   const editDeveloper = ref("");
   const editDescription = ref("");
   const editReleaseYear = ref<number | null>(null);
-  const editLocked = ref(true);
-  const editDescLocked = ref(true);
   const manualScrapeOpen = ref(false);
   const mediaUploading = ref<string | null>(null);
   const lastReport = ref<unknown>(null);
@@ -200,7 +199,7 @@ function createApp() {
     ({ authed, name, id }) => {
       if (!authed) return;
       if (name === "library" || name === "game") refreshGames().catch(() => undefined);
-      if (name === "home") api.stats().then((s) => (stats.value = s)).catch(() => undefined);
+      if (name === "home") refreshHome().catch(() => undefined);
       if (name === "settings") {
         api.settings()
           .then((s) => {
@@ -213,9 +212,7 @@ function createApp() {
           .catch(() => undefined);
       }
       if (name === "scrape") {
-        api.scrapeStatus()
-          .then((s) => (scrapeStatus.value = s))
-          .catch(() => undefined);
+        void refreshScrape().catch(() => undefined);
       }
       if (name === "game") {
         const gameId = Number(id);
@@ -260,14 +257,49 @@ function createApp() {
     if (me.value) await refreshAll();
   }
 
+  async function refreshHome() {
+    const [st, pl, jb, sc, recent] = await Promise.all([
+      api.stats(),
+      api.platforms(),
+      api.jobs(),
+      api.scrapeStatus().catch(() => null),
+      api.games({ limit: 12, sort: "updated" }).catch(() => ({ items: [] as Game[] })),
+    ]);
+    stats.value = st;
+    platforms.value = pl.items;
+    jobs.value = jb.items;
+    scrapeStatus.value = sc;
+    recentGames.value = recent.items;
+    const withRoms = platforms.value.filter((p) => (p.rom_count ?? 0) > 0);
+    if (!scrapePlatformId.value || !withRoms.some((p) => p.id === scrapePlatformId.value)) {
+      scrapePlatformId.value = withRoms[0]?.id || "";
+    }
+  }
+
+  async function refreshScrape() {
+    const [st, pl, sc] = await Promise.all([
+      api.stats(),
+      api.platforms(),
+      api.scrapeStatus().catch(() => null),
+    ]);
+    stats.value = st;
+    platforms.value = pl.items;
+    scrapeStatus.value = sc;
+    const withRoms = platforms.value.filter((p) => (p.rom_count ?? 0) > 0);
+    if (!scrapePlatformId.value || !withRoms.some((p) => p.id === scrapePlatformId.value)) {
+      scrapePlatformId.value = withRoms[0]?.id || "";
+    }
+  }
+
   async function refreshAll() {
-    const [st, pl, gm, jb, se, sc] = await Promise.all([
+    const [st, pl, gm, jb, se, sc, recent] = await Promise.all([
       api.stats(),
       api.platforms(),
       api.games({ platform: platformFilter.value || undefined, q: query.value || undefined, limit: 300 }),
       api.jobs(),
       api.settings(),
       api.scrapeStatus().catch(() => null),
+      api.games({ limit: 12, sort: "updated" }).catch(() => ({ items: [] as Game[] })),
     ]);
     stats.value = st;
     platforms.value = pl.items;
@@ -275,6 +307,7 @@ function createApp() {
     jobs.value = jb.items;
     settings.value = se;
     scrapeStatus.value = sc;
+    recentGames.value = recent.items;
     hydrateProviderForms(se);
     const withRoms = platforms.value.filter((p) => (p.rom_count ?? 0) > 0);
     if (!scrapePlatformId.value || !withRoms.some((p) => p.id === scrapePlatformId.value)) {
@@ -348,6 +381,7 @@ function createApp() {
     busy.value = true;
     busyLabel.value = t("scan.running");
     jobProgress.value = 0;
+    go("settings", "tasks");
     try {
       const job = kind === "scan" ? await api.scan() : await api.importPegasus();
       const done = await waitJob(job.id, (j) => {
@@ -609,10 +643,11 @@ function createApp() {
         await api.updateSteamGridDB(body);
         sgdbApiKey.value = "";
       }
-      providerSaved.value = true;
       settings.value = await api.settings();
       hydrateProviderForms(settings.value);
       scrapeStatus.value = await api.scrapeStatus();
+      providerModal.value = null;
+      providerSaved.value = false;
     } catch (e) {
       error.value = e instanceof Error ? e.message : t("auth.submitFailed");
     } finally {
@@ -627,8 +662,6 @@ function createApp() {
     editDeveloper.value = g.developer;
     editDescription.value = g.description;
     editReleaseYear.value = g.release_year > 0 ? g.release_year : null;
-    editLocked.value = g.title_zh_locked;
-    editDescLocked.value = g.description_locked;
   }
 
   function mediaPath(kind: string) {
@@ -675,6 +708,16 @@ function createApp() {
     }
   }
 
+  async function openGameById(id: number) {
+    if (!id) return;
+    try {
+      const g = await api.game(id);
+      openGame(g);
+    } catch {
+      void router.push({ name: "game", params: { id: String(id) } });
+    }
+  }
+
   function closeGame() {
     selected.value = null;
     if (router.currentRoute.value.name === "game") {
@@ -690,8 +733,6 @@ function createApp() {
       developer: editDeveloper.value,
       description: editDescription.value,
       release_year: editReleaseYear.value && editReleaseYear.value > 0 ? editReleaseYear.value : 0,
-      title_zh_locked: editLocked.value,
-      description_locked: editDescLocked.value,
     });
     applySelectedGame(g);
     await refreshGames();
@@ -703,6 +744,13 @@ function createApp() {
       return;
     }
     void router.push({ name: v });
+  }
+
+  function openLibrary(platformId?: string) {
+    platformFilter.value = platformId ?? "";
+    query.value = "";
+    void refreshGames();
+    go("library");
   }
 
   return reactive({
@@ -732,6 +780,7 @@ function createApp() {
     stats,
     platforms,
     games,
+    recentGames,
     jobs,
     settings,
     scrapeStatus,
@@ -744,8 +793,6 @@ function createApp() {
     editDeveloper,
     editDescription,
     editReleaseYear,
-    editLocked,
-    editDescLocked,
     manualScrapeOpen,
     mediaUploading,
     lastReport,
@@ -795,6 +842,7 @@ function createApp() {
     testLLM,
     runTranslatePlatform,
     openGame,
+    openGameById,
     closeGame,
     saveGame,
     mediaPath,
@@ -804,6 +852,7 @@ function createApp() {
     onManualScrapeSaved,
     refreshGames,
     go,
+    openLibrary,
   });
 }
 

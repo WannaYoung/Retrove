@@ -34,6 +34,12 @@ func (s *Server) runScan(jobID int64) {
 	rep, err := s.scan.Run(scan.Options{
 		RomsRoot:       s.cfg.Paths.Roms,
 		FollowSymlinks: s.cfg.Scan.FollowSymlinks,
+	}, func(done, total int, msg string) {
+		progress := 0.0
+		if total > 0 {
+			progress = float64(done) / float64(total)
+		}
+		_ = s.jobs.Update(jobID, jobs.StatusRunning, progress, msg, nil)
 	})
 	if err != nil {
 		_ = s.jobs.Update(jobID, jobs.StatusFailed, 1, err.Error(), nil)

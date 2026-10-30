@@ -27,6 +27,8 @@ type Options struct {
 	FollowSymlinks bool
 }
 
+type ProgressFunc func(done, total int, msg string)
+
 type Service struct {
 	db *sql.DB
 }
@@ -35,7 +37,7 @@ func New(db *sql.DB) *Service {
 	return &Service{db: db}
 }
 
-func (s *Service) Run(opts Options) (Report, error) {
+func (s *Service) Run(opts Options, onProgress ProgressFunc) (Report, error) {
 	plats, err := platform.List(s.db)
 	if err != nil {
 		return Report{}, err
@@ -53,6 +55,13 @@ func (s *Service) Run(opts Options) (Report, error) {
 	if err != nil {
 		return Report{}, fmt.Errorf("read roms root: %w", err)
 	}
+
+	type pendingFile struct {
+		plat platform.Definition
+		rel  string
+		abs  string
+	}
+	var files []pendingFile
 	for _, ent := range entries {
 		if !ent.IsDir() {
 			continue
@@ -81,16 +90,32 @@ func (s *Service) Run(opts Options) (Report, error) {
 			if err != nil {
 				return err
 			}
-			rel = filepath.ToSlash(rel)
-			seenPaths[rel] = struct{}{}
-			rep.Scanned++
-			return s.upsertFile(p, rel, path, now, &rep)
+			files = append(files, pendingFile{plat: p, rel: filepath.ToSlash(rel), abs: path})
+			return nil
 		})
 		if err != nil {
 			return rep, err
 		}
 	}
 
+	total := len(files)
+	if onProgress != nil {
+		onProgress(0, total, fmt.Sprintf("待扫描 %d", total))
+	}
+	for i, f := range files {
+		seenPaths[f.rel] = struct{}{}
+		rep.Scanned++
+		if err := s.upsertFile(f.plat, f.rel, f.abs, now, &rep); err != nil {
+			return rep, err
+		}
+		if onProgress != nil && (i%8 == 0 || i+1 == total) {
+			onProgress(i+1, total, fmt.Sprintf("扫描 %s", f.rel))
+		}
+	}
+
+	if onProgress != nil {
+		onProgress(total, total, "检查缺失文件")
+	}
 	rows, err := s.db.Query(`SELECT id, path FROM rom_files WHERE missing=0`)
 	if err != nil {
 		return rep, err

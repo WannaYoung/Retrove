@@ -22,13 +22,18 @@ type ImportReport struct {
 	Media     int `json:"media"`
 }
 
-func ImportAll(db *sql.DB, romsRoot, dataRoot string) (ImportReport, error) {
+type ProgressFunc func(done, total int, msg string)
+
+func ImportAll(db *sql.DB, romsRoot, dataRoot string, onProgress ProgressFunc) (ImportReport, error) {
 	plats, err := platform.List(db)
 	if err != nil {
 		return ImportReport{}, err
 	}
-	rep := ImportReport{}
-	now := time.Now().UTC().Format(time.RFC3339)
+	type pending struct {
+		plat platform.Definition
+		game Game
+	}
+	var items []pending
 	for _, p := range plats {
 		meta := filepath.Join(romsRoot, p.Directory, "metadata.pegasus.txt")
 		if _, err := os.Stat(meta); err != nil {
@@ -36,24 +41,45 @@ func ImportAll(db *sql.DB, romsRoot, dataRoot string) (ImportReport, error) {
 		}
 		col, err := ParseFile(meta)
 		if err != nil {
-			return rep, fmt.Errorf("%s: %w", meta, err)
+			return ImportReport{}, fmt.Errorf("%s: %w", meta, err)
 		}
-		rep.Platforms++
 		for _, g := range col.Games {
-			if g.File == "" || g.Title == "" {
-				rep.Skipped++
-				continue
+			items = append(items, pending{plat: p, game: g})
+		}
+	}
+
+	rep := ImportReport{}
+	now := time.Now().UTC().Format(time.RFC3339)
+	total := len(items)
+	if onProgress != nil {
+		onProgress(0, total, fmt.Sprintf("待导入 %d", total))
+	}
+	seenPlat := map[string]struct{}{}
+	for i, item := range items {
+		p, g := item.plat, item.game
+		if _, ok := seenPlat[p.ID]; !ok {
+			seenPlat[p.ID] = struct{}{}
+			rep.Platforms++
+		}
+		if g.File == "" || g.Title == "" {
+			rep.Skipped++
+			if onProgress != nil && (i%8 == 0 || i+1 == total) {
+				onProgress(i+1, total, fmt.Sprintf("跳过 %s", p.Directory))
 			}
-			rel := filepath.ToSlash(filepath.Join(p.Directory, g.File))
-			n, err := applyGame(db, p.ID, p.Directory, romsRoot, dataRoot, rel, g, now)
-			if err != nil {
-				return rep, err
-			}
-			rep.Matched += n.Matched
-			rep.Created += n.Created
-			rep.Updated += n.Updated
-			rep.Aliases += n.Aliases
-			rep.Media += n.Media
+			continue
+		}
+		rel := filepath.ToSlash(filepath.Join(p.Directory, g.File))
+		n, err := applyGame(db, p.ID, p.Directory, romsRoot, dataRoot, rel, g, now)
+		if err != nil {
+			return rep, err
+		}
+		rep.Matched += n.Matched
+		rep.Created += n.Created
+		rep.Updated += n.Updated
+		rep.Aliases += n.Aliases
+		rep.Media += n.Media
+		if onProgress != nil && (i%8 == 0 || i+1 == total) {
+			onProgress(i+1, total, fmt.Sprintf("导入 %s", rel))
 		}
 	}
 	return rep, nil

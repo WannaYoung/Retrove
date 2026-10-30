@@ -33,8 +33,11 @@ backend: dev-backend
 frontend: dev-frontend
 
 build: config
-	$(BACKEND_ENV) go build -o bin/retrove ./cmd/retrove
 	cd web && npm install && npm run build
+	rm -rf internal/ui/dist
+	mkdir -p internal/ui/dist
+	cp -R web/dist/. internal/ui/dist/
+	$(BACKEND_ENV) go build -o bin/retrove ./cmd/retrove
 
 test:
 	go test ./...

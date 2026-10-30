@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
 
 	"retrove/internal/auth"
@@ -11,6 +12,7 @@ import (
 	"retrove/internal/jobs"
 	"retrove/internal/library"
 	"retrove/internal/scan"
+	"retrove/internal/ui"
 )
 
 type Server struct {
@@ -76,6 +78,23 @@ func New(cfg config.Config, db *sql.DB) *Server {
 
 func (s *Server) Handler() http.Handler {
 	return s.mux
+}
+
+// AdminHandler serves the embedded SPA on :5180 and forwards /api to the API mux
+// (same layout as local Vite → :5080).
+func (s *Server) AdminHandler() (http.Handler, bool) {
+	uiFS, ok := ui.Dist()
+	if !ok {
+		return nil, false
+	}
+	spa := ui.Handler(uiFS)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			s.mux.ServeHTTP(w, r)
+			return
+		}
+		spa.ServeHTTP(w, r)
+	}), true
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
