@@ -60,6 +60,7 @@ export default {
   },
   library: {
     empty: "No games yet. Scan ROMs, then import Pegasus metadata.",
+    pageInfo: "{total} games · page {page}/{pages}",
     missing: "Missing file",
     save: "Save",
     close: "Close",

@@ -105,7 +105,7 @@ SQLite is enough for single-user; concurrent writes are serialized via one worke
 | Module | Function |
 |--------|----------|
 | Library overview | Stats, missing covers / unidentified / pending, shortcuts |
-| Platform library | Platform tree + list/cards, filter & sort |
+| Platform library | Filter + search + cover grid, 50 per page |
 | Game detail | ZH/EN titles, blurb, ROM files, media; save writes back the Pegasus ROM name, metadata fields, and media folder |
 | Scan & identify | Progress, add/remove/rename diff, bulk accept matches |
 | Scrape center | ScreenScraper account, scrape by gap/platform, retry failures |

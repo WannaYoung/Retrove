@@ -87,7 +87,7 @@ Also done: backend `:5080`, frontend `:5180`; single-user register/login (passwo
 
 - [x] Shell: narrow sidebar + top bar (language/theme); iiSU-like cover grid, not a dashboard card wall
 - [x] Overview: platforms/games/ROMs/missing; quick scan & import
-- [x] Platform library: filter + search + cover grid
+- [x] Platform library: filter + search + cover grid, 50 per page
 - [x] Game detail: sidebar edit ZH/EN title/description/lock
 - [x] Scan page: scan ROMs, import Pegasus, show report
 - [x] Settings: read-only paths + appearance (language/theme); SS credentials deferred to Phase 5

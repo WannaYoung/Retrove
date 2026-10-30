@@ -96,9 +96,12 @@ func (s *Service) MissingMediaCount() (int, error) {
 	return n, err
 }
 
-func (s *Service) ListGames(platformID, q, sort string, limit, offset int) ([]Game, error) {
+func (s *Service) ListGames(platformID, q, sort string, limit, offset int) ([]Game, int, error) {
 	if limit <= 0 {
 		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	args := []any{}
 	where := []string{"1=1"}
@@ -111,11 +114,22 @@ func (s *Service) ListGames(platformID, q, sort string, limit, offset int) ([]Ga
 		like := "%" + q + "%"
 		args = append(args, like, like, like, like)
 	}
+	whereSQL := strings.Join(where, " AND ")
+	countSQL := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM games g
+		JOIN platforms p ON p.id = g.platform_id
+		LEFT JOIN rom_files r ON r.game_id = g.id
+		WHERE %s`, whereSQL)
+	var total int
+	if err := s.db.QueryRow(countSQL, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
 	order := "p.sort_order, g.title_zh"
 	if sort == "updated" {
 		order = "g.updated_at DESC, g.id DESC"
 	}
-	args = append(args, limit, offset)
+	listArgs := append(append([]any{}, args...), limit, offset)
 	sqlStr := fmt.Sprintf(`
 		SELECT g.id, g.platform_id, p.name, g.title_zh, g.title_en, g.description, g.developer,
 			COALESCE(g.release_year, 0), g.title_zh_locked, g.description_locked, g.scrape_id,
@@ -126,10 +140,10 @@ func (s *Service) ListGames(platformID, q, sort string, limit, offset int) ([]Ga
 		LEFT JOIN rom_files r ON r.game_id = g.id
 		WHERE %s
 		ORDER BY %s
-		LIMIT ? OFFSET ?`, strings.Join(where, " AND "), order)
-	rows, err := s.db.Query(sqlStr, args...)
+		LIMIT ? OFFSET ?`, whereSQL, order)
+	rows, err := s.db.Query(sqlStr, listArgs...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 	var out []Game
@@ -139,14 +153,14 @@ func (s *Service) ListGames(platformID, q, sort string, limit, offset int) ([]Ga
 		var descLocked int
 		if err := rows.Scan(&g.ID, &g.PlatformID, &g.PlatformName, &g.TitleZH, &g.TitleEN, &g.Description, &g.Developer,
 			&g.ReleaseYear, &locked, &descLocked, &g.ScrapeID, &g.ROMPath, &g.Filename, &missing, &g.SHA1, &g.CoverPath); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		g.TitleZHLocked = locked == 1
 		g.DescriptionLocked = descLocked == 1
 		g.Missing = missing == 1
 		out = append(out, g)
 	}
-	return out, rows.Err()
+	return out, total, rows.Err()
 }
 
 func (s *Service) GetGame(id int64) (Game, error) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NButton, NIcon, NInput, NSelect, NTag } from "naive-ui";
+import { NButton, NIcon, NInput, NPagination, NSelect, NTag } from "naive-ui";
 import { AlertCircleOutline, SearchOutline } from "@vicons/ionicons5";
 import { mediaURL } from "../../api/client";
 import { tileLetter, useAppStore } from "../app/composables/useApp";
@@ -14,21 +14,21 @@ const app = useAppStore();
         v-model:value="app.platformFilter"
         :options="app.platformOptions"
         class="platform-select"
-        @update:value="app.refreshGames"
+        @update:value="app.refreshGames(true)"
       />
       <n-input
         v-model:value="app.query"
         class="search-input"
         :placeholder="app.t('app.search')"
         clearable
-        @keyup.enter="app.refreshGames"
-        @clear="app.refreshGames"
+        @keyup.enter="app.refreshGames(true)"
+        @clear="app.refreshGames(true)"
       >
         <template #prefix>
           <n-icon :component="SearchOutline" :size="16" />
         </template>
       </n-input>
-      <n-button secondary class="search-btn" @click="app.refreshGames">
+      <n-button secondary class="search-btn" @click="app.refreshGames(true)">
         <template #icon>
           <n-icon :component="SearchOutline" />
         </template>
@@ -36,26 +36,40 @@ const app = useAppStore();
       </n-button>
     </div>
     <div v-if="!app.games.length" class="empty">{{ app.t("library.empty") }}</div>
-    <div v-else class="cover-grid">
-      <button v-for="g in app.games" :key="g.id" class="cover" @click="app.openGame(g)">
-        <div class="art" :data-tone="g.platform_id.length % 5">
-          <img v-if="g.cover_path" :src="mediaURL(g.cover_path)" alt="" loading="lazy" />
-          <span v-else>{{ tileLetter(g.title_zh || g.filename) }}</span>
-        </div>
-        <div class="meta">
-          <strong>{{ g.title_zh || g.filename }}</strong>
-          <small>{{ g.platform_name }}</small>
-        </div>
-        <div class="badges">
-          <n-tag v-if="g.missing" size="tiny" type="warning" round>
-            <template #icon>
-              <n-icon :component="AlertCircleOutline" />
-            </template>
-            {{ app.t("library.missing") }}
-          </n-tag>
-        </div>
-      </button>
-    </div>
+    <template v-else>
+      <div class="cover-grid">
+        <button v-for="g in app.games" :key="g.id" class="cover" @click="app.openGame(g)">
+          <div class="art" :data-tone="g.platform_id.length % 5">
+            <img v-if="g.cover_path" :src="mediaURL(g.cover_path)" alt="" loading="lazy" />
+            <span v-else>{{ tileLetter(g.title_zh || g.filename) }}</span>
+          </div>
+          <div class="meta">
+            <strong>{{ g.title_zh || g.filename }}</strong>
+            <small>{{ g.platform_name }}</small>
+          </div>
+          <div class="badges">
+            <n-tag v-if="g.missing" size="tiny" type="warning" round>
+              <template #icon>
+                <n-icon :component="AlertCircleOutline" />
+              </template>
+              {{ app.t("library.missing") }}
+            </n-tag>
+          </div>
+        </button>
+      </div>
+      <div v-if="app.gamesTotal > app.gamesPageSize" class="lib-pager">
+        <span class="pager-meta">
+          {{ app.t("library.pageInfo", { total: app.gamesTotal, page: app.gamesPage, pages: Math.ceil(app.gamesTotal / app.gamesPageSize) }) }}
+        </span>
+        <n-pagination
+          :page="app.gamesPage"
+          :page-size="app.gamesPageSize"
+          :item-count="app.gamesTotal"
+          :page-slot="7"
+          @update:page="app.setGamesPage"
+        />
+      </div>
+    </template>
   </section>
 </template>
 
@@ -139,6 +153,22 @@ const app = useAppStore();
   justify-content: flex-end;
   gap: 0.25rem;
   max-width: calc(100% - 1rem);
+}
+
+.lib-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid hsl(var(--border) / 0.45);
+}
+
+.pager-meta {
+  font-size: 0.85rem;
+  opacity: 0.65;
 }
 
 @media (min-width: 720px) {

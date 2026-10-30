@@ -31,7 +31,13 @@ func (s *Server) listGames(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	offset, _ := strconv.Atoi(q.Get("offset"))
-	items, err := s.lib.ListGames(q.Get("platform"), q.Get("q"), q.Get("sort"), limit, offset)
+	if limit <= 0 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	items, total, err := s.lib.ListGames(q.Get("platform"), q.Get("q"), q.Get("sort"), limit, offset)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "读取游戏失败")
 		return
@@ -39,7 +45,12 @@ func (s *Server) listGames(w http.ResponseWriter, r *http.Request) {
 	if items == nil {
 		items = []library.Game{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items":  items,
+		"total":  total,
+		"limit":  limit,
+		"offset": offset,
+	})
 }
 
 func (s *Server) getGame(w http.ResponseWriter, r *http.Request) {

@@ -52,12 +52,22 @@ func TestStatsAndRecentGames(t *testing.T) {
 		t.Fatalf("stats %+v", st)
 	}
 
-	recent, err := svc.ListGames("", "", "updated", 10, 0)
+	recent, total, err := svc.ListGames("", "", "updated", 10, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if total != 3 {
+		t.Fatalf("total=%d", total)
+	}
 	if len(recent) != 3 || recent[0].ID != 3 || recent[1].ID != 2 {
 		t.Fatalf("recent %#v", recent)
+	}
+	page, pageTotal, err := svc.ListGames("", "", "updated", 2, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pageTotal != 3 || len(page) != 2 || page[0].ID != 3 {
+		t.Fatalf("page %#v total=%d", page, pageTotal)
 	}
 }
 

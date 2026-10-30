@@ -65,6 +65,9 @@ function createApp() {
   const platformFilter = ref("");
   const scrapePlatformId = ref("");
   const query = ref("");
+  const gamesPage = ref(1);
+  const gamesTotal = ref(0);
+  const gamesPageSize = 50;
   const selected = ref<Game | null>(null);
   const editTitleZh = ref("");
   const editTitleEn = ref("");
@@ -263,7 +266,7 @@ function createApp() {
       api.platforms(),
       api.jobs(),
       api.scrapeStatus().catch(() => null),
-      api.games({ limit: 12, sort: "updated" }).catch(() => ({ items: [] as Game[] })),
+      api.games({ limit: 12, sort: "updated" }).catch(() => ({ items: [] as Game[], total: 0, limit: 12, offset: 0 })),
     ]);
     stats.value = st;
     platforms.value = pl.items;
@@ -295,15 +298,21 @@ function createApp() {
     const [st, pl, gm, jb, se, sc, recent] = await Promise.all([
       api.stats(),
       api.platforms(),
-      api.games({ platform: platformFilter.value || undefined, q: query.value || undefined, limit: 300 }),
+      api.games({
+        platform: platformFilter.value || undefined,
+        q: query.value || undefined,
+        limit: gamesPageSize,
+        offset: (gamesPage.value - 1) * gamesPageSize,
+      }),
       api.jobs(),
       api.settings(),
       api.scrapeStatus().catch(() => null),
-      api.games({ limit: 12, sort: "updated" }).catch(() => ({ items: [] as Game[] })),
+      api.games({ limit: 12, sort: "updated" }).catch(() => ({ items: [] as Game[], total: 0, limit: 12, offset: 0 })),
     ]);
     stats.value = st;
     platforms.value = pl.items;
     games.value = gm.items;
+    gamesTotal.value = gm.total ?? 0;
     jobs.value = jb.items;
     settings.value = se;
     scrapeStatus.value = sc;
@@ -315,13 +324,27 @@ function createApp() {
     }
   }
 
-  async function refreshGames() {
+  async function refreshGames(resetPage = false) {
+    if (resetPage) gamesPage.value = 1;
     const gm = await api.games({
       platform: platformFilter.value || undefined,
       q: query.value || undefined,
-      limit: 300,
+      limit: gamesPageSize,
+      offset: (gamesPage.value - 1) * gamesPageSize,
     });
     games.value = gm.items;
+    gamesTotal.value = gm.total ?? 0;
+    const pages = Math.max(1, Math.ceil(gamesTotal.value / gamesPageSize) || 1);
+    if (gamesPage.value > pages) {
+      gamesPage.value = pages;
+      if (gamesTotal.value > 0) await refreshGames();
+    }
+  }
+
+  function setGamesPage(page: number) {
+    if (page < 1 || page === gamesPage.value) return;
+    gamesPage.value = page;
+    void refreshGames();
   }
 
   onMounted(() => {
@@ -749,6 +772,7 @@ function createApp() {
   function openLibrary(platformId?: string) {
     platformFilter.value = platformId ?? "";
     query.value = "";
+    gamesPage.value = 1;
     void refreshGames();
     go("library");
   }
@@ -787,6 +811,9 @@ function createApp() {
     platformFilter,
     scrapePlatformId,
     query,
+    gamesPage,
+    gamesTotal,
+    gamesPageSize,
     selected,
     editTitleZh,
     editTitleEn,
@@ -851,6 +878,7 @@ function createApp() {
     closeManualScrape,
     onManualScrapeSaved,
     refreshGames,
+    setGamesPage,
     go,
     openLibrary,
   });

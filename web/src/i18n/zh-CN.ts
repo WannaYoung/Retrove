@@ -60,6 +60,7 @@ export default {
   },
   library: {
     empty: "还没有游戏。先扫描 ROM，再导入 Pegasus 元数据。",
+    pageInfo: "共 {total} 款 · 第 {page}/{pages} 页",
     missing: "文件缺失",
     save: "保存",
     close: "关闭",

@@ -254,13 +254,14 @@ export const api = {
   logout: () => request<{ status: string }>("/api/v1/auth/logout", { method: "POST" }),
   platforms: () => request<{ items: Platform[] }>("/api/v1/platforms"),
   stats: () => request<Stats>("/api/v1/library/stats"),
-  games: (params: { platform?: string; q?: string; limit?: number; sort?: string }) => {
+  games: (params: { platform?: string; q?: string; limit?: number; offset?: number; sort?: string }) => {
     const q = new URLSearchParams();
     if (params.platform) q.set("platform", params.platform);
     if (params.q) q.set("q", params.q);
     if (params.sort) q.set("sort", params.sort);
-    q.set("limit", String(params.limit ?? 200));
-    return request<{ items: Game[] }>(`/api/v1/games?${q}`);
+    q.set("limit", String(params.limit ?? 50));
+    if (params.offset != null && params.offset > 0) q.set("offset", String(params.offset));
+    return request<{ items: Game[]; total: number; limit: number; offset: number }>(`/api/v1/games?${q}`);
   },
   game: (id: number) => request<Game>(`/api/v1/games/${id}`),
   updateGame: (id: number, body: object) =>
