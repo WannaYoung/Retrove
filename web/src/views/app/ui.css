@@ -1,0 +1,224 @@
+/* Shared UI primitives used across views (not scoped). */
+
+.brand-mark {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: hsl(var(--primary-foreground));
+  background: linear-gradient(145deg, hsl(var(--primary)), hsl(var(--accent)));
+  flex-shrink: 0;
+}
+
+.brand-mark.sm {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.85rem;
+  font-size: 0.95rem;
+}
+
+.lead,
+.file-line,
+.busy,
+.empty {
+  margin: 0.2rem 0 0;
+  opacity: 0.72;
+}
+
+.err {
+  color: hsl(var(--destructive));
+  margin: 0 0 0.75rem;
+}
+
+.panel {
+  animation: retrove-rise 280ms ease;
+}
+
+@keyframes retrove-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin: 1.25rem 0 1.75rem;
+}
+
+.stat {
+  position: relative;
+  padding: 1.1rem 1rem;
+  border-radius: 1.15rem;
+  background: hsl(var(--card) / 0.7);
+  border: 1px solid hsl(var(--border) / 0.65);
+}
+
+.stat-icon {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  opacity: 0.45;
+}
+
+.stat > span {
+  display: block;
+  font-size: 1.8rem;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+.stat label {
+  opacity: 0.65;
+  font-size: 0.85rem;
+}
+
+.stat.warn span,
+.stat.warn .stat-icon {
+  color: hsl(var(--destructive));
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.75rem 1.15rem;
+  border-radius: 999px;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+}
+
+.pill.ghost {
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted) / 0.7);
+}
+
+.pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.platform-select {
+  width: 100%;
+  max-width: 180px;
+}
+
+.art,
+.drawer-art {
+  aspect-ratio: 3 / 4;
+  display: grid;
+  place-items: center;
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: hsl(var(--primary-foreground) / 0.92);
+  overflow: hidden;
+}
+
+.art img,
+.drawer-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.art[data-tone="0"],
+.drawer-art[data-tone="0"] {
+  background: linear-gradient(160deg, hsl(var(--primary)), hsl(210 40% 28%));
+}
+.art[data-tone="1"],
+.drawer-art[data-tone="1"] {
+  background: linear-gradient(160deg, hsl(var(--accent)), hsl(var(--primary)));
+}
+.art[data-tone="2"],
+.drawer-art[data-tone="2"] {
+  background: linear-gradient(160deg, hsl(200 45% 40%), hsl(var(--secondary)));
+}
+.art[data-tone="3"],
+.drawer-art[data-tone="3"] {
+  background: linear-gradient(160deg, hsl(25 55% 45%), hsl(var(--primary)));
+}
+.art[data-tone="4"],
+.drawer-art[data-tone="4"] {
+  background: linear-gradient(160deg, hsl(280 30% 40%), hsl(210 35% 30%));
+}
+
+.report,
+.job-list {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: hsl(var(--card) / 0.55);
+  border: 1px solid hsl(var(--border) / 0.55);
+}
+
+.report pre {
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+.job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+}
+
+.job-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.85rem 0.9rem;
+  border-radius: 0.85rem;
+}
+
+.job-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.job-info strong,
+.job-info small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-list li:nth-child(odd) {
+  background: hsl(var(--muted) / 0.35);
+}
+
+.job-list small {
+  opacity: 0.65;
+}
+
+.job-list.compact {
+  margin-top: 0;
+}
+
+@media (min-width: 720px) {
+  .stat-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

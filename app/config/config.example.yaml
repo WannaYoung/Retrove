@@ -1,0 +1,45 @@
+server:
+  listen: ":5080"
+
+paths:
+  roms: /app/roms
+  data: /app/data
+  config: /app/config
+
+sqlite:
+  path: /app/data/retrove.db
+
+screenscraper:
+  dev_id: ""
+  dev_password: ""
+  user_ss: ""
+  user_password: ""
+  softname: Retrove
+
+# Twitch/IGDB developer application (https://api-docs.igdb.com/)
+igdb:
+  client_id: ""
+  client_secret: ""
+
+# https://www.steamgriddb.com/profile/preferences/api
+steamgriddb:
+  api_key: ""
+
+# OpenAI 兼容 Chat Completions（如 OpenAI / DeepSeek / 本地 Ollama 代理）
+llm:
+  base_url: ""
+  api_key: ""
+  model: ""
+
+scan:
+  rehash_on_mtime_size_change: true
+  follow_symlinks: false
+
+export:
+  root: /app/data/export
+
+security:
+  allow_rom_rename: false
+
+log:
+  level: info

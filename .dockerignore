@@ -1,0 +1,16 @@
+.git
+.gitignore
+docs
+web/node_modules
+web/dist
+web
+app/data
+app/roms
+app/igdb-sample
+app/sgdb-sample
+app/*-sample
+bin
+*.md
+.DS_Store
+.env
+.env.*

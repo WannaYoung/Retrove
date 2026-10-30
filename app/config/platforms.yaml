@@ -1,0 +1,480 @@
+# 目录名 ↔ 内部平台。Arcade 使用 hash_mode=archive，rename_policy=deny。
+platforms:
+  - id: fc
+    name: FC
+    directory: FC
+    extensions: [nes, unf, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 3
+    sort_order: 10
+
+  - id: fc-hack
+    name: FC Hack
+    directory: FC hack
+    extensions: [nes, unf, zip, 7z]
+    hash_mode: content
+    scrape_as: fc
+    screenscraper_id: 3
+    sort_order: 11
+
+  - id: fc-hd
+    name: FC HD
+    directory: FC-HD
+    extensions: [nes, unf, zip, 7z]
+    hash_mode: content
+    scrape_as: fc
+    screenscraper_id: 3
+    sort_order: 12
+
+  - id: sfc
+    name: SFC
+    directory: SFC
+    extensions: [sfc, smc, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 4
+    sort_order: 20
+
+  - id: sfc-hack
+    name: SFC Hack
+    directory: SFC hack
+    extensions: [sfc, smc, zip, 7z]
+    hash_mode: content
+    scrape_as: sfc
+    screenscraper_id: 4
+    sort_order: 21
+
+  - id: md
+    name: MD
+    directory: MD
+    extensions: [md, gen, bin, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 1
+    sort_order: 30
+
+  - id: md-hack
+    name: MD Hack
+    directory: MD hack
+    extensions: [md, gen, bin, zip, 7z]
+    hash_mode: content
+    scrape_as: md
+    screenscraper_id: 1
+    sort_order: 31
+
+  - id: md-hack-picodrive
+    name: MD Hack (PicoDrive)
+    directory: MD hack(picodrive)
+    extensions: [md, gen, bin, zip, 7z]
+    hash_mode: content
+    scrape_as: md
+    screenscraper_id: 1
+    sort_order: 32
+
+  - id: md-32x
+    name: MD 32X
+    directory: MD-32X
+    extensions: [32x, bin, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 19
+    sort_order: 33
+
+  - id: gb
+    name: GB
+    directory: GB
+    extensions: [gb, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 9
+    sort_order: 40
+
+  - id: gbc
+    name: GBC
+    directory: GBC
+    extensions: [gbc, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 10
+    sort_order: 41
+
+  - id: gba
+    name: GBA
+    directory: GBA
+    extensions: [gba, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 12
+    sort_order: 42
+
+  - id: gg
+    name: GG
+    directory: GG
+    extensions: [gg, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 21
+    sort_order: 43
+
+  - id: sms
+    name: SMS
+    directory: SMS
+    extensions: [sms, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 2
+    sort_order: 44
+
+  - id: n64
+    name: N64
+    directory: N64
+    extensions: [n64, z64, v64, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 14
+    sort_order: 50
+
+  - id: nds
+    name: NDS
+    directory: NDS
+    extensions: [nds, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 15
+    sort_order: 51
+
+  - id: ngc
+    name: NGC
+    directory: NGC
+    extensions: [iso, gcm, ciso, rvz, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 13
+    sort_order: 52
+
+  - id: wii
+    name: WII
+    directory: WII
+    extensions: [iso, wbfs, rvz, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 16
+    sort_order: 53
+
+  - id: wii-ware
+    name: WII Ware
+    directory: WII Ware
+    extensions: [wad, zip, 7z]
+    hash_mode: content
+    scrape_as: wii
+    screenscraper_id: 16
+    sort_order: 54
+
+  - id: virtual-boy
+    name: Virtual Boy
+    directory: Virtual Boy
+    extensions: [vb, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 11
+    sort_order: 55
+
+  - id: ps1
+    name: PS1
+    directory: PS1
+    extensions: [cue, bin, chd, pbp, iso, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 57
+    sort_order: 60
+
+  - id: psp
+    name: PSP
+    directory: PSP
+    extensions: [iso, cso, pbp, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 61
+    sort_order: 61
+
+  - id: ss
+    name: SS
+    directory: SS
+    extensions: [cue, bin, chd, iso, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 22
+    sort_order: 62
+
+  - id: dc
+    name: DC
+    directory: DC
+    extensions: [cdi, gdi, chd, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 23
+    sort_order: 63
+
+  - id: pce
+    name: PCE
+    directory: PCE
+    extensions: [pce, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 31
+    sort_order: 70
+
+  - id: pce-cd
+    name: PCE-CD
+    directory: PCE-CD
+    extensions: [cue, bin, chd, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 32
+    sort_order: 71
+
+  - id: pc-fx
+    name: PC-FX
+    directory: PC-FX
+    extensions: [cue, bin, chd, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 33
+    sort_order: 72
+
+  - id: ngpc
+    name: NGPC
+    directory: NGPC
+    extensions: [ngc, ngp, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 25
+    sort_order: 73
+
+  - id: ws
+    name: WS
+    directory: WS
+    extensions: [ws, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 45
+    sort_order: 74
+
+  - id: wsc
+    name: WSC
+    directory: WSC
+    extensions: [wsc, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 46
+    sort_order: 75
+
+  - id: poke-mini
+    name: POKE MINI
+    directory: POKE MINI
+    extensions: [min, zip, 7z]
+    hash_mode: content
+    screenscraper_id: 24
+    sort_order: 76
+
+  - id: game-watch
+    name: GAME WATCH
+    directory: GAME WATCH
+    extensions: [mgw, zip, 7z]
+    hash_mode: content
+    sort_order: 77
+
+  - id: dos
+    name: DOS
+    directory: DOS
+    extensions: [zip, 7z, exe, bat]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 80
+
+  - id: naomi
+    name: NAOMI
+    directory: NAOMI
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 90
+
+  - id: fbneo-act
+    name: FBNEO ACT
+    directory: FBNEO ACT
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 100
+
+  - id: fbneo-act-v
+    name: FBNEO ACT V
+    directory: FBNEO ACT V
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    scrape_as: fbneo-act
+    sort_order: 101
+
+  - id: fbneo-act-hack
+    name: FBNEO ACT Hack
+    directory: FBNEO ACT hack
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    scrape_as: fbneo-act
+    sort_order: 102
+
+  - id: fbneo-stg
+    name: FBNEO STG
+    directory: FBNEO STG
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 110
+
+  - id: fbneo-stg-v
+    name: FBNEO STG V
+    directory: FBNEO STG V
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    scrape_as: fbneo-stg
+    sort_order: 111
+
+  - id: fbneo-stg-hack
+    name: FBNEO STG Hack
+    directory: FBNEO STG hack
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    scrape_as: fbneo-stg
+    sort_order: 112
+
+  - id: fbneo-ftg
+    name: FBNEO FTG
+    directory: FBNEO FTG
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 120
+
+  - id: fbneo-ftg-hack
+    name: FBNEO FTG Hack
+    directory: FBNEO FTG hack
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    scrape_as: fbneo-ftg
+    sort_order: 121
+
+  - id: fbneo-fly
+    name: FBNEO FLY
+    directory: FBNEO FLY
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 130
+
+  - id: fbneo-fly-v
+    name: FBNEO FLY V
+    directory: FBNEO FLY V
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    scrape_as: fbneo-fly
+    sort_order: 131
+
+  - id: fbneo-etc
+    name: FBNEO ETC
+    directory: FBNEO ETC
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 140
+
+  - id: fbneo-etc-v
+    name: FBNEO ETC V
+    directory: FBNEO ETC V
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    scrape_as: fbneo-etc
+    sort_order: 141
+
+  - id: fbneo-spo
+    name: FBNEO SPO
+    directory: FBNEO SPO
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 150
+
+  - id: fbneo-rac
+    name: FBNEO RAC
+    directory: FBNEO RAC
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 151
+
+  - id: mame-act
+    name: MAME ACT
+    directory: MAME ACT
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 160
+
+  - id: mame-stg
+    name: MAME STG
+    directory: MAME STG
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 170
+
+  - id: mame-stg-v
+    name: MAME STG V
+    directory: MAME STG V
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    scrape_as: mame-stg
+    sort_order: 171
+
+  - id: mame-ftg
+    name: MAME FTG
+    directory: MAME FTG
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 180
+
+  - id: mame-ftg-hack
+    name: MAME FTG Hack
+    directory: MAME FTG hack
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    scrape_as: mame-ftg
+    sort_order: 181
+
+  - id: mame-fly
+    name: MAME FLY
+    directory: MAME FLY
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 190
+
+  - id: mame-fly-v
+    name: MAME FLY V
+    directory: MAME FLY V
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    scrape_as: mame-fly
+    sort_order: 191
+
+  - id: mame-etc
+    name: MAME ETC
+    directory: MAME ETC
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 200
+
+  - id: mame-spo
+    name: MAME SPO
+    directory: MAME SPO
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 210
+
+  - id: mame-rac
+    name: MAME RAC
+    directory: MAME RAC
+    extensions: [zip]
+    hash_mode: archive
+    rename_policy: deny
+    sort_order: 211

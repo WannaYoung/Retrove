@@ -1,0 +1,17 @@
+services:
+  retrove:
+    build: .
+    image: retrove:local
+    working_dir: /app
+    ports:
+      - "5080:5080"
+    environment:
+      TZ: Asia/Shanghai
+      PUID: "1000"
+      PGID: "1000"
+      RETROVE_CONFIG: /app/config/config.yaml
+    volumes:
+      - ./app/config:/app/config
+      - ./app/data:/app/data
+      - ./app/roms:/app/roms
+    restart: unless-stopped

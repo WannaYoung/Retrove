@@ -1,0 +1,48 @@
+# --- Secrets & local config ---
+app/config/config.yaml
+*.local.yaml
+.env
+.env.*
+!.env.example
+
+# --- Runtime data (SQLite, media, export, cache) ---
+app/data/*
+!app/data/.gitkeep
+
+# --- ROM library (user content; never commit) ---
+app/roms/*
+!app/roms/.gitkeep
+
+# --- Local API sample dumps (may include copyrighted media) ---
+app/igdb-sample/
+app/sgdb-sample/
+app/*-sample/
+
+# --- Go ---
+bin/
+dist/
+*.exe
+*.test
+*.out
+coverage.out
+coverage.html
+
+# --- Frontend ---
+web/node_modules/
+web/dist/
+web/.vite/
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Logs & temp ---
+*.log
+tmp/
+temp/
+.cache/
