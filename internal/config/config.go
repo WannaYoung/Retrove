@@ -217,7 +217,7 @@ func defaults() Config {
 	cfg.Paths.Roms = "/app/roms"
 	cfg.Paths.Data = "/app/data"
 	cfg.Paths.Config = "/app/config"
-	cfg.SQLite.Path = "/app/data/retrove.db"
+	cfg.SQLite.Path = "/app/config/retrove.db"
 	cfg.Export.Root = "/app/data/export"
 	cfg.ScreenScraper.Softname = "Retrove"
 	cfg.Scan.RehashOnMtimeSizeChange = true
@@ -258,7 +258,7 @@ func normalize(cfg *Config) {
 		cfg.Server.Listen = ":" + cfg.Server.Listen
 	}
 	if cfg.SQLite.Path == "" {
-		cfg.SQLite.Path = filepath.Join(cfg.Paths.Data, "retrove.db")
+		cfg.SQLite.Path = filepath.Join(cfg.Paths.Config, "retrove.db")
 	}
 	if cfg.Export.Root == "" {
 		cfg.Export.Root = filepath.Join(cfg.Paths.Data, "export")

@@ -101,29 +101,34 @@ func TestApplyInfoRespectsDescriptionLock(t *testing.T) {
 	if err := db.QueryRow(`SELECT description FROM games WHERE id=?`, id).Scan(&desc); err != nil {
 		t.Fatal(err)
 	}
-	if desc != "" {
-		t.Fatalf("locked empty description should stay empty, got %q", desc)
+	if desc != "刮削简介" {
+		t.Fatalf("empty description should be filled, got %q", desc)
 	}
 
-	if _, err := db.Exec(`UPDATE games SET description_locked=0 WHERE id=?`, id); err != nil {
-		t.Fatal(err)
-	}
 	if err := svc.applyInfo(target{
 		GameID:            id,
 		PlatformID:        "sfc",
 		TitleZH:           "中文名",
 		TitleEN:           "English",
-		TitleZHLocked:     true,
+		Description:       "已有简介",
+		Developer:         "已有厂商",
+		ReleaseYear:       1990,
+		TitleZHLocked:     false,
 		DescriptionLocked: false,
 		Filename:          "a.zip",
-	}, info, "ss:1", DefaultFields(), WriteUpdate); err != nil {
+	}, &GameInfo{
+		ID: "1", TitleEN: "Other", TitleZH: "别的中文", Description: "新简介", Developer: "新厂商", ReleaseYear: 2001,
+	}, "ss:1", DefaultFields(), WriteOverwrite); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.QueryRow(`SELECT description FROM games WHERE id=?`, id).Scan(&desc); err != nil {
+	var zh, en, dev string
+	var year int
+	if err := db.QueryRow(`SELECT title_zh, title_en, description, developer, COALESCE(release_year,0) FROM games WHERE id=?`, id).
+		Scan(&zh, &en, &desc, &dev, &year); err != nil {
 		t.Fatal(err)
 	}
-	if desc != "刮削简介" {
-		t.Fatalf("unlocked description not filled: %q", desc)
+	if zh != "中文名" || en != "English" || desc != "已有简介" || dev != "已有厂商" || year != 1990 {
+		t.Fatalf("existing fields replaced: zh=%q en=%q desc=%q dev=%q year=%d", zh, en, desc, dev, year)
 	}
 }
 
@@ -222,6 +227,11 @@ func TestNormalizeForcesTitleZHOff(t *testing.T) {
 	}
 	if opts.WriteMode != WriteUpdate {
 		t.Fatalf("default write mode=%q", opts.WriteMode)
+	}
+	forced := Options{Mode: ModePlatform, WriteMode: WriteOverwrite, Fields: Fields{TitleEN: true, Box: true}}
+	forced.Normalize()
+	if forced.WriteMode != WriteUpdate {
+		t.Fatalf("overwrite should be forced to update, got %q", forced.WriteMode)
 	}
 }
 

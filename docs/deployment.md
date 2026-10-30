@@ -36,8 +36,8 @@ Put the ROM library in **`app/roms/`** (often with Pegasus metadata already pres
 
 | Host | Container | Purpose |
 |------|-----------|---------|
-| `./app/config` | `/app/config` | Config, platform map, dictionaries, API secrets |
-| `./app/data` | `/app/data` | SQLite, media, cache, **export** |
+| `./app/config` | `/app/config` | Config, platform map, dictionaries, API secrets, SQLite |
+| `./app/data` | `/app/data` | media, cache, **export** |
 | `./app/roms` | `/app/roms` | ROM files (only this tree is scanned) |
 
 Exports write to **`/app/data/export/<target>/`** (host: `app/data/export/`).
@@ -58,7 +58,7 @@ paths:
   config: /app/config
 
 sqlite:
-  path: /app/data/retrove.db
+  path: /app/config/retrove.db
   # WAL enabled via PRAGMA at startup
 
 screenscraper:
@@ -145,7 +145,7 @@ docker compose up -d --build
 
 | Item | Need |
 |------|------|
-| `app/data/retrove.db` | Required (metadata) |
+| `app/config/retrove.db` | Required (metadata) |
 | `app/config/` | Required (dictionaries & secrets) |
 | `app/data/media/` | Recommended (re-scrapable but slow / quota-heavy) |
 | `app/data/export/` | Optional (re-exportable) |
@@ -210,20 +210,20 @@ Same yaml + env path overrides, or a `config.local.yaml` (never commit secrets).
 
 ### 4.4 SQLite debugging
 
-- DB: `app/data/retrove.db` (container `/app/data/retrove.db`)  
+- DB: `app/config/retrove.db` (container `/app/config/retrove.db`)  
 - Tools: `sqlite3` CLI or a GUI (careful with live WAL while the service runs).  
 
 ```bash
-sqlite3 app/data/retrove.db "PRAGMA journal_mode; PRAGMA busy_timeout;"
-sqlite3 app/data/retrove.db "SELECT COUNT(*) FROM rom_files;"
+sqlite3 app/config/retrove.db "PRAGMA journal_mode; PRAGMA busy_timeout;"
+sqlite3 app/config/retrove.db "SELECT COUNT(*) FROM rom_files;"
 ```
 
-Reset DB (drops metadata, keeps ROMs):
+Reset DB and scraped media (drops metadata/users/jobs; keeps `app/roms`):
 
 ```bash
 make docker-down   # if using compose
-rm -f app/data/retrove.db app/data/retrove.db-*
-# then make backend or make docker-up — migrations run again
+make reset-db
+# then make dev-backend or make docker-up — empty schema is created again
 ```
 
 ### 4.5 Typical debug path
@@ -231,8 +231,8 @@ rm -f app/data/retrove.db app/data/retrove.db-*
 1. `make dev-*`, sample with 1–2 platforms under `app/roms/SFC`, etc.  
 2. Trigger scan → confirm hashes in `rom_files`.  
 3. **Rename one zip** → scan again → same `sha1` row updates path (no new row).  
-4. Import that platform’s `metadata.pegasus.txt` → Chinese title on detail page.  
-5. Configure a ScreenScraper test account → scrape one title → check `app/data/media` and UI cover.  
+4. Import that platform’s Pegasus metadata → Chinese title, description, box, logo, and preview video show on the detail page. Re-import replaces them.  
+5. Translate to English, then scrape → empty fields only. Existing Chinese titles and covers stay. Check `app/data/media`.  
 6. Export Pegasus → inspect `app/data/export/pegasus/...`.
 
 ### 4.6 Logging
@@ -258,7 +258,6 @@ rm -f app/data/retrove.db app/data/retrove.db-*
 |--------|-------------------------|
 | Pegasus | `app/data/export/pegasus/<platform>/metadata.pegasus.txt` |
 | EmuELEC | `app/data/export/emuelec/...` |
-| Tianma | `app/data/export/tianma/...` |
 | iisu | `app/data/export/iisu/...` |
 | Cocoon | `app/data/export/cocoon/...` |
 
@@ -277,7 +276,7 @@ First pass hashes everything; later passes skip via size+mtime. SSD/local is muc
 Unique key wrongly used path/filename—implementation bug; merge on sha1+size.
 
 **Chinese title overwritten by scrape**  
-Title may be unlocked; after lock, only manual edits apply.
+Third-party scrape must not replace an existing Chinese title, description, developer, English title, box, or logo. If it does, that is a bug. Change those values from the detail panel (which writes the Pegasus files back) or replace the Pegasus files and import again.
 
 **Container up but no ROMs**  
 Confirm compose mounts host ROMs at **`/app/roms`** and `paths.roms` is `/app/roms`.

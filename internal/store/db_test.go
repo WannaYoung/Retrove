@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestMigrateIdempotent(t *testing.T) {
+func TestEnsureSchemaIdempotent(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "retrove.db")
 	db, err := Open(path)
 	if err != nil {
@@ -13,16 +13,24 @@ func TestMigrateIdempotent(t *testing.T) {
 	}
 	defer db.Close()
 
-	var version int
-	if err := db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
+	var migrations int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name='schema_migrations'`).Scan(&migrations); err != nil {
 		t.Fatal(err)
 	}
-	if version < 3 {
-		t.Fatalf("version %d", version)
+	if migrations != 0 {
+		t.Fatal("schema_migrations should not exist")
 	}
-	var lockedCol int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('games') WHERE name='description_locked'`).Scan(&lockedCol); err != nil || lockedCol != 1 {
-		t.Fatalf("description_locked missing: %v", err)
+	checks := []struct{ table, col string }{
+		{"games", "description_locked"},
+		{"games", "title_zh_locked"},
+		{"platforms", "igdb_id"},
+	}
+	for _, c := range checks {
+		var n int
+		q := `SELECT COUNT(*) FROM pragma_table_info('` + c.table + `') WHERE name=?`
+		if err := db.QueryRow(q, c.col).Scan(&n); err != nil || n != 1 {
+			t.Fatalf("%s.%s missing: %v n=%d", c.table, c.col, err, n)
+		}
 	}
 	tables := []string{"platforms", "games", "rom_files", "aliases", "media_assets", "scrape_cache", "jobs", "users", "sessions"}
 	for _, name := range tables {
@@ -31,7 +39,7 @@ func TestMigrateIdempotent(t *testing.T) {
 			t.Fatalf("table %s missing: %v", name, err)
 		}
 	}
-	if err := Migrate(db); err != nil {
+	if err := EnsureSchema(db); err != nil {
 		t.Fatal(err)
 	}
 }

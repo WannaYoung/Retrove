@@ -13,9 +13,9 @@ Retrove helps users:
 
 - Manage multi-system ROM trees (FC / SFC / MD / FBNeo / MAME …)
 - Identify files stably by content hash (renames keep metadata)
-- Fill Chinese/English names and media via a **local Chinese dictionary** + **ScreenScraper**
-- Fix titles, lock Chinese names, and review gaps in a web console
-- Export tables and media layouts for Tianma, EmuELEC, iisu, Cocoon, Pegasus, and similar frontends
+- Treat Pegasus import as the source for Chinese titles, descriptions, developers, box art, logos, and preview videos; translation supplies English names; scrape only fills gaps
+- Edit one game in the web console and write the Pegasus ROM name, metadata fields, and media folder back
+- Export tables and media layouts for Pegasus, EmuELEC, iisu, Cocoon, and similar frontends
 
 **Non-goals (v1):** emulator cores, online multiplayer, bundling/distributing ROMs, multi-tenant SaaS.
 
@@ -95,7 +95,7 @@ SQLite is enough for single-user; concurrent writes are serialized via one worke
 | `scrape` | ScreenScraper client, rate limits, persistence |
 | `dictionary` | Dictionary file import/export; runtime reads DB |
 | `import` | Import existing Pegasus `metadata.pegasus.txt` |
-| `export` | Pegasus / EmuELEC / Tianma / iisu / Cocoon adapters |
+| `export` | Pegasus / EmuELEC / iisu / Cocoon adapters |
 | `media` | Download, store, index under `/app/data/media` |
 | `jobs` | Background job state (scan / scrape / export) |
 | `store` | SQLite access and migrations |
@@ -106,7 +106,7 @@ SQLite is enough for single-user; concurrent writes are serialized via one worke
 |--------|----------|
 | Library overview | Stats, missing covers / unidentified / pending, shortcuts |
 | Platform library | Platform tree + list/cards, filter & sort |
-| Game detail | ZH/EN/JA titles, blurb, ROM files, media, lock Chinese title, re-scrape |
+| Game detail | ZH/EN titles, blurb, ROM files, media; save writes back the Pegasus ROM name, metadata fields, and media folder |
 | Scan & identify | Progress, add/remove/rename diff, bulk accept matches |
 | Scrape center | ScreenScraper account, scrape by gap/platform, retry failures |
 | Alias workbench | Browse local dictionary, bulk apply, review suggestions |
@@ -164,9 +164,10 @@ Names hang off `games` and `aliases`, never as the file primary key.
 ### 5.3 Identification pipeline
 
 1. Hash already linked to a `game` → keep Chinese title and scrape results  
-2. Local Pegasus import / DB dictionary (hash or cleaned filename) → write `title_zh`  
-3. Still missing English or cover → ScreenScraper (content hash; arcade zip hash); never overwrite locked Chinese titles  
-4. Still failing → `unidentified`; manual link in UI
+2. Pegasus import (`metadata.pegasus.txt` + `media/{ROM stem}/`) overwrites Chinese title, description, developer, box, and logo  
+3. Translation writes `title_en` from the Chinese title (skip when English already exists) so scrape can search  
+4. Scrape only fills gaps Pegasus did not provide: IGDB → ScreenScraper → SteamGridDB; existing fields and media stay  
+5. Still failing → `unidentified`; edit the game in the detail panel and write the Pegasus files back
 
 ---
 
@@ -183,25 +184,33 @@ Names hang off `games` and `aliases`, never as the file primary key.
 - Runtime reads only DB `aliases` and `games.title_zh`.
 - `/app/config/dictionaries/` for import and DB backup export.
 - Entries at least: platform, English canonical name or hash, Chinese title, optional aliases.
-- Pegasus import writes `games` and `aliases`.
-- Alias workbench edits the DB; locked `title_zh` must not be overwritten by scrape.
+- Pegasus import writes `games` and `aliases`, and overwrites the Chinese title, description, and developer.
+- Alias workbench edits the DB. Scrape does not replace an existing Chinese title, description, developer, English title, or media file.
 
 ### 6.3 Scrapers (ScreenScraper + IGDB + SteamGridDB)
 
-Configured sources chain automatically (fill gaps; never overwrite locked Chinese titles):
+Batch scrape chains configured sources and only fills empty values. Provider order stays:
 
-1. **ScreenScraper** (optional): developer/user credentials in `/app/config`. Prefer content hash, then filename; fill English + box/screenshots, etc.
-2. **IGDB** (optional): Twitch Client ID/Secret. By name: English title, description, developer, cover.
-3. **SteamGridDB** (optional): API Key. By name: portrait covers.
+1. **IGDB** (primary, optional): Twitch Client ID/Secret. Translated English name + `igdb_id` from `platforms.yaml`. Fills empty English title, description, developer, year, box art, screenshots, and title art.
+2. **ScreenScraper** (optional): developer/user credentials in `/app/config`. Prefer content hash, then filename; fills only what IGDB still missed.
+3. **SteamGridDB** (optional): API Key. Fills remaining media only (portrait covers, title art, logos; hero as screenshot fallback).
 
-Media lands in `/app/data/media/{platform}/{game_id}/`; respect API quotas; failures go to jobs for retry.  
-Do **not** auto-rename Arcade ROM set filenames from scrape results. Settings show provider status on the first level; credentials open in a nested dialog.
+Games without an English title are skipped. Preview video is not scraped. Results go to the database and `/app/data/media/{platform}/{game_id}/` only — not back into the Pegasus folders. Respect API quotas; failures go to jobs for retry.  
+Do **not** rename ROM files from scrape results. Settings show provider status on the first level; credentials open in a nested dialog.
 
-### 6.4 Import Pegasus
+### 6.4 Import Pegasus metadata
 
-- Parse `metadata.pegasus.txt` under each platform folder.
-- Align `file:` with disk; write `game:` into `title_zh`; descriptions into `games`.
-- Primary cold-start path for Chinese libraries.
+Pegasus data is `metadata.pegasus.txt` plus `media/{ROM stem}/` in each platform folder. Re-import treats those files as authoritative and overwrites the matching library values.
+
+- Align `file:` with scanned `rom_files`. Entries with no ROM row are skipped.
+- `game:` → Chinese title, `description:` → description, `developer:` → developer.
+- The media folder follows the ROM stem, not the `game:` title. `boxFront.*` → box, `logo.*` → logo, and `video.*` → preview video are copied to `data/media/{platform}/{game_id}/` with source `pegasus`. A missing file does not delete one already in the library.
+
+Saving a game in the detail panel writes those files back:
+
+- Chinese title: on host platforms, rename the ROM to `{new title}{original extension}`, update `rom_files`, and patch `game:` / `file:`. Rename `media/{old stem}/` with it, including the preview video. If the target ROM or media folder already exists, cancel the rename. Arcade `rename_policy: deny` leaves the ROM and media folder names unchanged and only updates `game:`.
+- Description or developer: patch that one game's field. Do not rewrite the whole metadata file.
+- Replacing box / logo / preview video from the detail panel overwrites `boxFront.*` / `logo.*` / `video.*`. Screenshots, title art, and the English title stay in the library. Scrape does not import or replace preview video.
 
 ### 6.5 Export
 
@@ -209,14 +218,14 @@ Do **not** auto-rename Arcade ROM set filenames from scrape results. Settings sh
 - Targets:
   - **Pegasus**: `metadata.pegasus.txt` + media layout (compatible with existing libs; implement first)
   - **EmuELEC / EmulationStation**: `gamelist.xml` + media conventions
-  - **Tianma / iisu / Cocoon**: each via its own adapter
+  - **iisu / Cocoon**: each via its own adapter
 - Every export produces a report (ok / skipped / failed).
 
 ### 6.6 Admin console summary
 
 - Search (Chinese/English titles, filenames)
-- Edit and lock Chinese titles
-- Manual cover upload
+- Edit one game and write the Chinese title, description, developer, box, logo, and preview video back to the Pegasus files
+- Manual cover/video upload (box / logo / video also written into the Pegasus media folder)
 - Trigger scan / scrape / export
 - Review duplicate ROMs, missing files, unidentified list
 
@@ -242,8 +251,8 @@ Container working directory is `/app`; persistent dirs hang under `/app/`:
 
 | Host (suggested) | In container | Contents |
 |------------------|--------------|----------|
-| `./app/config` | `/app/config` | `config.yaml`, dictionaries, ScreenScraper secrets |
-| `./app/data` | `/app/data` | `retrove.db`, `media/`, `export/`, `cache/` |
+| `./app/config` | `/app/config` | `config.yaml`, dictionaries, ScreenScraper secrets, `retrove.db` |
+| `./app/data` | `/app/data` | `media/`, `export/`, `cache/` |
 | `./app/roms` | `/app/roms` | ROM library |
 
 Notes:
@@ -273,6 +282,7 @@ Maintain `/app/config/platforms.yaml` (or equivalent):
 - Directory name (e.g. `SFC`, `FBNEO STG`) → internal `platform_id`
 - Extension list
 - ScreenScraper system id
+- IGDB platform id
 - Per-export system/folder names
 - `rename_policy`: `allow` | `deny` (Arcade = `deny`)
 

@@ -13,8 +13,9 @@
 - 多机型 ROM 库（FC / SFC / MD / FBNeo / MAME 等）
 - 以内容 hash 作为稳定身份（改名不丢元数据）：主机算包内 ROM；街机算 zip 本身
 - 一文件一条游戏（美版 / 日版 / 汉化 / Hack 各自独立）
-- 刮削：ScreenScraper（主源）+ 可选 IGDB / SteamGridDB；本地中文词典导入
-- Web 管理台：浏览纠错、锁定中文名、补刮媒体；多主题与中英文界面
+- 天马导入为主：中文名、简介、开发商、box、logo、预览视频可反复导入替换
+- 翻译把中文名写成英文名。刮削（IGDB → ScreenScraper → SteamGridDB）只补空位，不替换已有字段和媒体
+- Web 管理台：浏览、编辑单款并写回天马 ROM 名 / 元数据 / 媒体目录；多主题与中英文界面
 - 导出 Pegasus 等前端布局（详见文档）
 - 支持 Docker / Compose；Go 单二进制 + Vue 管理端
 
@@ -72,9 +73,10 @@ Compose 会挂载 `./app/config`、`./app/data`、`./app/roms`。默认端口：
 |------|------|
 | `app/config/config.example.yaml` | 仓库内示例模板 |
 | `app/config/config.yaml` | 本地密钥（已 gitignore） |
-| `app/config/platforms.yaml` | 目录名 ↔ 平台 / ScreenScraper system id |
+| `app/config/platforms.yaml` | 目录名 ↔ 平台 / ScreenScraper system id / IGDB platform id |
 | `app/config/dictionaries/` | 中文词典导入 / 备份 |
-| `app/data/` | SQLite、媒体、缓存、导出 |
+| `app/config/retrove.db` | SQLite 库（已 gitignore） |
+| `app/data/` | 刮削媒体、缓存、导出 |
 | `app/roms/` | 你的 ROM 树 |
 
 刮削密钥只放在 `config.yaml`（或环境变量覆盖）。某源留空即禁用，不影响其他功能。

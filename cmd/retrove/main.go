@@ -7,7 +7,6 @@ import (
 
 	"retrove/internal/api"
 	"retrove/internal/config"
-	"retrove/internal/library"
 	"retrove/internal/platform"
 	"retrove/internal/store"
 )
@@ -25,9 +24,6 @@ func main() {
 		log.Fatalf("open db: %v", err)
 	}
 	defer db.Close()
-	if err := library.MigrateWheelToLogo(db, cfg.Paths.Data); err != nil {
-		log.Printf("migrate wheel→logo: %v", err)
-	}
 
 	platformsPath := platform.DefaultPath(cfg.Paths.Config)
 	defs, err := platform.LoadFile(platformsPath)

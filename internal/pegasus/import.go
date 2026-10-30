@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"retrove/internal/library"
 	"retrove/internal/platform"
 )
 
@@ -18,9 +19,10 @@ type ImportReport struct {
 	Updated   int `json:"updated"`
 	Aliases   int `json:"aliases"`
 	Skipped   int `json:"skipped"`
+	Media     int `json:"media"`
 }
 
-func ImportAll(db *sql.DB, romsRoot string) (ImportReport, error) {
+func ImportAll(db *sql.DB, romsRoot, dataRoot string) (ImportReport, error) {
 	plats, err := platform.List(db)
 	if err != nil {
 		return ImportReport{}, err
@@ -43,7 +45,7 @@ func ImportAll(db *sql.DB, romsRoot string) (ImportReport, error) {
 				continue
 			}
 			rel := filepath.ToSlash(filepath.Join(p.Directory, g.File))
-			n, err := applyGame(db, p.ID, rel, g, now)
+			n, err := applyGame(db, p.ID, p.Directory, romsRoot, dataRoot, rel, g, now)
 			if err != nil {
 				return rep, err
 			}
@@ -51,16 +53,17 @@ func ImportAll(db *sql.DB, romsRoot string) (ImportReport, error) {
 			rep.Created += n.Created
 			rep.Updated += n.Updated
 			rep.Aliases += n.Aliases
+			rep.Media += n.Media
 		}
 	}
 	return rep, nil
 }
 
 type applyResult struct {
-	Matched, Created, Updated, Aliases int
+	Matched, Created, Updated, Aliases, Media int
 }
 
-func applyGame(db *sql.DB, platformID, rel string, g Game, now string) (applyResult, error) {
+func applyGame(db *sql.DB, platformID, platformDir, romsRoot, dataRoot, rel string, g Game, now string) (applyResult, error) {
 	var romID int64
 	var gameID sql.NullInt64
 	err := db.QueryRow(`SELECT id, game_id FROM rom_files WHERE path=?`, rel).Scan(&romID, &gameID)
@@ -81,7 +84,7 @@ func applyGame(db *sql.DB, platformID, rel string, g Game, now string) (applyRes
 		_, err = db.Exec(`UPDATE games SET
 			title_zh=?,
 			description=?,
-			developer=CASE WHEN developer='' THEN ? ELSE developer END,
+			developer=?,
 			updated_at=? WHERE id=?`,
 			title, desc, dev, now, gameID.Int64)
 		if err != nil {
@@ -93,6 +96,11 @@ func applyGame(db *sql.DB, platformID, rel string, g Game, now string) (applyRes
 			return applyResult{}, err
 		}
 		res.Aliases = n
+		mediaN, err := copyPegasusMedia(library.New(db), dataRoot, romsRoot, platformDir, platformID, gameID.Int64, g.File)
+		if err != nil {
+			return applyResult{}, err
+		}
+		res.Media = mediaN
 		return res, nil
 	}
 
@@ -122,6 +130,11 @@ func applyGame(db *sql.DB, platformID, rel string, g Game, now string) (applyRes
 		return applyResult{}, err
 	}
 	res.Aliases = n
+	mediaN, err := copyPegasusMedia(library.New(db), dataRoot, romsRoot, platformDir, platformID, id, g.File)
+	if err != nil {
+		return applyResult{}, err
+	}
+	res.Media = mediaN
 	return res, nil
 }
 

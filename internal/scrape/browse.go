@@ -123,7 +123,11 @@ func (s *Service) browseIGDB(ctx context.Context, game library.Game, kind, query
 		gameID = id
 	}
 	if gameID <= 0 {
-		id, name, err := s.igdb.ResolveGameID(ctx, query)
+		platID, err := s.platformIGDBID(game.PlatformID)
+		if err != nil {
+			return out, err
+		}
+		id, name, err := s.igdb.ResolveGameID(ctx, query, platID)
 		if err != nil {
 			return out, err
 		}

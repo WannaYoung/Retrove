@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -72,12 +73,73 @@ func (s *Server) updateGame(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "validation", "请求格式不正确")
 		return
 	}
+	old, err := s.lib.GetGame(id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "游戏不存在")
+		return
+	}
 	g, err := s.lib.UpdateGame(id, in)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "更新失败")
 		return
 	}
+	if err := s.syncPegasusFields(old, g); err != nil {
+		revert := library.UpdateGameInput{
+			TitleZH:     &old.TitleZH,
+			Description: &old.Description,
+			Developer:   &old.Developer,
+		}
+		_, _ = s.lib.UpdateGame(id, revert)
+		var conflict *pegasus.ConflictError
+		if errors.As(err, &conflict) {
+			writeError(w, http.StatusConflict, "conflict", conflict.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal", err.Error())
+		return
+	}
+	g, err = s.lib.GetGame(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "读取游戏失败")
+		return
+	}
 	writeJSON(w, http.StatusOK, g)
+}
+
+func (s *Server) syncPegasusFields(old, next library.Game) error {
+	if strings.TrimSpace(old.Filename) == "" {
+		return nil
+	}
+	if old.TitleZH == next.TitleZH && old.Description == next.Description && old.Developer == next.Developer {
+		return nil
+	}
+	var dir, policy string
+	if err := s.db.QueryRow(`SELECT directory, rename_policy FROM platforms WHERE id=?`, old.PlatformID).Scan(&dir, &policy); err != nil {
+		return err
+	}
+	s.mu.RLock()
+	romsRoot := s.cfg.Paths.Roms
+	s.mu.RUnlock()
+	res, err := pegasus.SyncDetail(romsRoot, dir, policy != "deny", old.Filename, pegasus.DetailFields{
+		TitleZH:     next.TitleZH,
+		Description: next.Description,
+		Developer:   next.Developer,
+	})
+	if err != nil {
+		return err
+	}
+	if !res.Renamed {
+		return nil
+	}
+	if err := s.lib.RenameROM(old.ID, old.Filename, res.Filename, dir); err != nil {
+		_, _ = pegasus.SyncDetail(romsRoot, dir, policy != "deny", res.Filename, pegasus.DetailFields{
+			TitleZH:     old.TitleZH,
+			Description: old.Description,
+			Developer:   old.Developer,
+		})
+		return err
+	}
+	return nil
 }
 
 func (s *Server) startImportPegasus(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +157,7 @@ func (s *Server) startImportPegasus(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) runImportPegasus(jobID int64) {
 	_ = s.jobs.Update(jobID, jobs.StatusRunning, 0, "导入 Pegasus", nil)
-	rep, err := pegasus.ImportAll(s.db, s.cfg.Paths.Roms)
+	rep, err := pegasus.ImportAll(s.db, s.cfg.Paths.Roms, s.cfg.Paths.Data)
 	if err != nil {
 		_ = s.jobs.Update(jobID, jobs.StatusFailed, 1, err.Error(), nil)
 		return

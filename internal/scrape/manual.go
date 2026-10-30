@@ -67,22 +67,30 @@ func candidateFromGameInfo(provider, id string, info *GameInfo) Candidate {
 }
 
 func (s *Service) platformSSID(platformID string) (int, error) {
+	return s.platformMappedID(platformID, func(p platform.Definition) int { return p.ScreenScraperID })
+}
+
+func (s *Service) platformIGDBID(platformID string) (int, error) {
+	return s.platformMappedID(platformID, func(p platform.Definition) int { return p.IGDBID })
+}
+
+func (s *Service) platformMappedID(platformID string, pick func(platform.Definition) int) (int, error) {
 	plats, err := platform.List(s.db)
 	if err != nil {
 		return 0, err
 	}
-	ssID := map[string]int{}
+	ids := map[string]int{}
 	scrapeAs := map[string]string{}
 	for _, p := range plats {
-		ssID[p.ID] = p.ScreenScraperID
+		ids[p.ID] = pick(p)
 		scrapeAs[p.ID] = p.ScrapeAs
 	}
 	if as := scrapeAs[platformID]; as != "" {
-		if parent, ok := ssID[as]; ok && parent > 0 {
+		if parent, ok := ids[as]; ok && parent > 0 {
 			return parent, nil
 		}
 	}
-	return ssID[platformID], nil
+	return ids[platformID], nil
 }
 
 // SearchProvider returns candidate summaries for a configured source.
@@ -93,7 +101,7 @@ func (s *Service) SearchProvider(ctx context.Context, provider, query, platformI
 	case "screenscraper", "ss":
 		return s.searchScreenScraper(ctx, query, platformID)
 	case "igdb":
-		return s.searchIGDB(ctx, query)
+		return s.searchIGDB(ctx, query, platformID)
 	case "steamgriddb", "sgdb":
 		return s.searchSGDB(ctx, query)
 	default:
@@ -138,11 +146,15 @@ func mediasFromBundle(b MediaBundle) map[string]string {
 	return medias
 }
 
-func (s *Service) searchIGDB(ctx context.Context, query string) ([]Candidate, error) {
+func (s *Service) searchIGDB(ctx context.Context, query, platformID string) ([]Candidate, error) {
 	if !s.igdb.Configured() {
 		return nil, classify(KindConfig, "未配置 IGDB", nil)
 	}
-	games, err := s.igdb.SearchGames(ctx, query, 10)
+	igdbPlat, err := s.platformIGDBID(platformID)
+	if err != nil {
+		return nil, err
+	}
+	games, err := s.igdb.SearchGames(ctx, query, igdbPlat, 10)
 	if err != nil {
 		return nil, err
 	}
@@ -252,26 +264,11 @@ func (s *Service) ApplyCandidate(ctx context.Context, game library.Game, cand Ca
 	lib := library.New(s.db)
 	in := library.UpdateGameInput{}
 
-	pickStr := func(side ApplySide, left, right string) *string {
-		v := left
-		if side == SideRight {
-			v = right
-		}
-		return &v
-	}
-	pickYear := func(side ApplySide, left, right int) *int {
-		v := left
-		if side == SideRight {
-			v = right
-		}
-		return &v
-	}
-
-	in.TitleZH = pickStr(choices.TitleZH, game.TitleZH, cand.TitleZH)
-	in.TitleEN = pickStr(choices.TitleEN, game.TitleEN, cand.TitleEN)
-	in.Description = pickStr(choices.Description, game.Description, cand.Description)
-	in.Developer = pickStr(choices.Developer, game.Developer, cand.Developer)
-	in.ReleaseYear = pickYear(choices.ReleaseYear, game.ReleaseYear, cand.ReleaseYear)
+	in.TitleZH = fillStr(game.TitleZH, cand.TitleZH, choices.TitleZH)
+	in.TitleEN = fillStr(game.TitleEN, cand.TitleEN, choices.TitleEN)
+	in.Description = fillStr(game.Description, cand.Description, choices.Description)
+	in.Developer = fillStr(game.Developer, cand.Developer, choices.Developer)
+	in.ReleaseYear = fillYear(game.ReleaseYear, cand.ReleaseYear, choices.ReleaseYear)
 	if cand.ID != "" {
 		scrapeID := cand.Provider + ":" + cand.ID
 		if cand.Provider == "screenscraper" {
@@ -298,7 +295,7 @@ func (s *Service) ApplyCandidate(ctx context.Context, game library.Game, cand Ca
 		KindLogo:       logoSide,
 	}
 	for kind, side := range mediaSides {
-		if side != SideRight {
+		if side != SideRight || hasMediaKind(game, kind) {
 			continue
 		}
 		url := ""
@@ -313,6 +310,35 @@ func (s *Service) ApplyCandidate(ctx context.Context, game library.Game, cand Ca
 		}
 	}
 	return lib.GetGame(game.ID)
+}
+
+// fillStr applies a scraped value only when the current field is empty.
+func fillStr(current, incoming string, side ApplySide) *string {
+	if strings.TrimSpace(current) != "" || side != SideRight {
+		return nil
+	}
+	v := incoming
+	return &v
+}
+
+func fillYear(current, incoming int, side ApplySide) *int {
+	if current > 0 || side != SideRight || incoming <= 0 {
+		return nil
+	}
+	v := incoming
+	return &v
+}
+
+func hasMediaKind(g library.Game, kind string) bool {
+	for _, m := range g.Media {
+		if m.Kind == kind && strings.TrimSpace(m.Path) != "" {
+			return true
+		}
+	}
+	if kind == KindBox && strings.TrimSpace(g.CoverPath) != "" {
+		return true
+	}
+	return false
 }
 
 func mustAtoi(s string) int {

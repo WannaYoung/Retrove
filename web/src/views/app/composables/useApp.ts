@@ -12,6 +12,7 @@ import {
   waitJob,
   type Game,
   type Job,
+  type MediaKind,
   type Platform,
   type ScrapeFailure,
   type ScrapeFields,
@@ -222,7 +223,6 @@ function createApp() {
           void router.replace({ name: "library" });
           return;
         }
-        if (selected.value?.id === gameId) return;
         api
           .game(gameId)
           .then((g) => applySelectedGame(g))
@@ -636,7 +636,7 @@ function createApp() {
     return hit?.path || (kind === "box" ? selected.value?.cover_path || "" : "");
   }
 
-  async function uploadMedia(kind: "box" | "screenshot" | "title" | "logo", file: File) {
+  async function uploadMedia(kind: MediaKind, file: File) {
     if (!selected.value) return;
     mediaUploading.value = kind;
     try {

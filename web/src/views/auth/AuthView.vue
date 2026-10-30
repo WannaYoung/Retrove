@@ -21,7 +21,7 @@ const app = useAppStore();
           <n-input v-model:value="app.username" :placeholder="app.t('auth.username')" size="large" />
         </n-form-item>
         <n-form-item v-if="!app.hasUser" :label="app.t('auth.email')">
-          <n-input v-model:value="app.email" placeholder="name@example.com" size="large" />
+          <n-input v-model:value="app.email" size="large" />
         </n-form-item>
         <n-form-item :label="app.t('auth.password')">
           <n-input

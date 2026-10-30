@@ -18,6 +18,7 @@ type Definition struct {
 	HashMode        string   `yaml:"hash_mode" json:"hash_mode"`
 	RenamePolicy    string   `yaml:"rename_policy" json:"rename_policy"`
 	ScreenScraperID int      `yaml:"screenscraper_id" json:"screenscraper_id"`
+	IGDBID          int      `yaml:"igdb_id" json:"igdb_id"`
 	ScrapeAs        string   `yaml:"scrape_as" json:"scrape_as"`
 	SortOrder       int      `yaml:"sort_order" json:"sort_order"`
 	ROMCount        int      `yaml:"-" json:"rom_count,omitempty"`
@@ -70,8 +71,8 @@ func Sync(db *sql.DB, defs []Definition) error {
 
 	for _, p := range defs {
 		_, err := tx.Exec(`
-			INSERT INTO platforms (id, name, directory, extensions, hash_mode, rename_policy, screenscraper_id, scrape_as, sort_order)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO platforms (id, name, directory, extensions, hash_mode, rename_policy, screenscraper_id, igdb_id, scrape_as, sort_order)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(id) DO UPDATE SET
 				name=excluded.name,
 				directory=excluded.directory,
@@ -79,9 +80,10 @@ func Sync(db *sql.DB, defs []Definition) error {
 				hash_mode=excluded.hash_mode,
 				rename_policy=excluded.rename_policy,
 				screenscraper_id=excluded.screenscraper_id,
+				igdb_id=excluded.igdb_id,
 				scrape_as=excluded.scrape_as,
 				sort_order=excluded.sort_order
-		`, p.ID, p.Name, p.Directory, strings.Join(p.Extensions, ","), p.HashMode, p.RenamePolicy, p.ScreenScraperID, p.ScrapeAs, p.SortOrder)
+		`, p.ID, p.Name, p.Directory, strings.Join(p.Extensions, ","), p.HashMode, p.RenamePolicy, p.ScreenScraperID, p.IGDBID, p.ScrapeAs, p.SortOrder)
 		if err != nil {
 			return fmt.Errorf("upsert %s: %w", p.ID, err)
 		}
@@ -91,7 +93,7 @@ func Sync(db *sql.DB, defs []Definition) error {
 
 func List(db *sql.DB) ([]Definition, error) {
 	rows, err := db.Query(`
-		SELECT p.id, p.name, p.directory, p.extensions, p.hash_mode, p.rename_policy, p.screenscraper_id, p.scrape_as, p.sort_order,
+		SELECT p.id, p.name, p.directory, p.extensions, p.hash_mode, p.rename_policy, p.screenscraper_id, p.igdb_id, p.scrape_as, p.sort_order,
 			(SELECT COUNT(*) FROM rom_files r WHERE r.platform_id=p.id AND r.missing=0) AS rom_count,
 			(SELECT COUNT(DISTINCT g.id) FROM games g
 			 JOIN rom_files r ON r.game_id=g.id AND r.missing=0
@@ -107,7 +109,7 @@ func List(db *sql.DB) ([]Definition, error) {
 	for rows.Next() {
 		var p Definition
 		var ext string
-		if err := rows.Scan(&p.ID, &p.Name, &p.Directory, &ext, &p.HashMode, &p.RenamePolicy, &p.ScreenScraperID, &p.ScrapeAs, &p.SortOrder, &p.ROMCount, &p.PendingEN); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Directory, &ext, &p.HashMode, &p.RenamePolicy, &p.ScreenScraperID, &p.IGDBID, &p.ScrapeAs, &p.SortOrder, &p.ROMCount, &p.PendingEN); err != nil {
 			return nil, err
 		}
 		if ext != "" {

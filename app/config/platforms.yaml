@@ -1,4 +1,5 @@
 # 目录名 ↔ 内部平台。Arcade 使用 hash_mode=archive，rename_policy=deny。
+# igdb_id 为 IGDB platform id（https://api-docs.igdb.com/#platform）；刮削按英文名 + 此 id 过滤。
 platforms:
   - id: fc
     name: FC
@@ -6,6 +7,7 @@ platforms:
     extensions: [nes, unf, zip, 7z]
     hash_mode: content
     screenscraper_id: 3
+    igdb_id: 18
     sort_order: 10
 
   - id: fc-hack
@@ -15,6 +17,7 @@ platforms:
     hash_mode: content
     scrape_as: fc
     screenscraper_id: 3
+    igdb_id: 18
     sort_order: 11
 
   - id: fc-hd
@@ -24,6 +27,7 @@ platforms:
     hash_mode: content
     scrape_as: fc
     screenscraper_id: 3
+    igdb_id: 18
     sort_order: 12
 
   - id: sfc
@@ -32,6 +36,7 @@ platforms:
     extensions: [sfc, smc, zip, 7z]
     hash_mode: content
     screenscraper_id: 4
+    igdb_id: 19
     sort_order: 20
 
   - id: sfc-hack
@@ -41,6 +46,7 @@ platforms:
     hash_mode: content
     scrape_as: sfc
     screenscraper_id: 4
+    igdb_id: 19
     sort_order: 21
 
   - id: md
@@ -49,6 +55,7 @@ platforms:
     extensions: [md, gen, bin, zip, 7z]
     hash_mode: content
     screenscraper_id: 1
+    igdb_id: 29
     sort_order: 30
 
   - id: md-hack
@@ -58,6 +65,7 @@ platforms:
     hash_mode: content
     scrape_as: md
     screenscraper_id: 1
+    igdb_id: 29
     sort_order: 31
 
   - id: md-hack-picodrive
@@ -67,6 +75,7 @@ platforms:
     hash_mode: content
     scrape_as: md
     screenscraper_id: 1
+    igdb_id: 29
     sort_order: 32
 
   - id: md-32x
@@ -75,6 +84,7 @@ platforms:
     extensions: [32x, bin, zip, 7z]
     hash_mode: content
     screenscraper_id: 19
+    igdb_id: 30
     sort_order: 33
 
   - id: gb
@@ -83,6 +93,7 @@ platforms:
     extensions: [gb, zip, 7z]
     hash_mode: content
     screenscraper_id: 9
+    igdb_id: 33
     sort_order: 40
 
   - id: gbc
@@ -91,6 +102,7 @@ platforms:
     extensions: [gbc, zip, 7z]
     hash_mode: content
     screenscraper_id: 10
+    igdb_id: 22
     sort_order: 41
 
   - id: gba
@@ -99,6 +111,7 @@ platforms:
     extensions: [gba, zip, 7z]
     hash_mode: content
     screenscraper_id: 12
+    igdb_id: 24
     sort_order: 42
 
   - id: gg
@@ -107,6 +120,7 @@ platforms:
     extensions: [gg, zip, 7z]
     hash_mode: content
     screenscraper_id: 21
+    igdb_id: 35
     sort_order: 43
 
   - id: sms
@@ -115,6 +129,7 @@ platforms:
     extensions: [sms, zip, 7z]
     hash_mode: content
     screenscraper_id: 2
+    igdb_id: 64
     sort_order: 44
 
   - id: n64
@@ -123,6 +138,7 @@ platforms:
     extensions: [n64, z64, v64, zip, 7z]
     hash_mode: content
     screenscraper_id: 14
+    igdb_id: 4
     sort_order: 50
 
   - id: nds
@@ -131,6 +147,7 @@ platforms:
     extensions: [nds, zip, 7z]
     hash_mode: content
     screenscraper_id: 15
+    igdb_id: 20
     sort_order: 51
 
   - id: ngc
@@ -139,6 +156,7 @@ platforms:
     extensions: [iso, gcm, ciso, rvz, zip, 7z]
     hash_mode: content
     screenscraper_id: 13
+    igdb_id: 21
     sort_order: 52
 
   - id: wii
@@ -147,6 +165,7 @@ platforms:
     extensions: [iso, wbfs, rvz, zip, 7z]
     hash_mode: content
     screenscraper_id: 16
+    igdb_id: 5
     sort_order: 53
 
   - id: wii-ware
@@ -156,6 +175,7 @@ platforms:
     hash_mode: content
     scrape_as: wii
     screenscraper_id: 16
+    igdb_id: 73
     sort_order: 54
 
   - id: virtual-boy
@@ -164,6 +184,7 @@ platforms:
     extensions: [vb, zip, 7z]
     hash_mode: content
     screenscraper_id: 11
+    igdb_id: 87
     sort_order: 55
 
   - id: ps1
@@ -172,6 +193,7 @@ platforms:
     extensions: [cue, bin, chd, pbp, iso, zip, 7z]
     hash_mode: content
     screenscraper_id: 57
+    igdb_id: 7
     sort_order: 60
 
   - id: psp
@@ -180,6 +202,7 @@ platforms:
     extensions: [iso, cso, pbp, zip, 7z]
     hash_mode: content
     screenscraper_id: 61
+    igdb_id: 38
     sort_order: 61
 
   - id: ss
@@ -188,6 +211,7 @@ platforms:
     extensions: [cue, bin, chd, iso, zip, 7z]
     hash_mode: content
     screenscraper_id: 22
+    igdb_id: 32
     sort_order: 62
 
   - id: dc
@@ -196,6 +220,7 @@ platforms:
     extensions: [cdi, gdi, chd, zip, 7z]
     hash_mode: content
     screenscraper_id: 23
+    igdb_id: 23
     sort_order: 63
 
   - id: pce
@@ -204,6 +229,7 @@ platforms:
     extensions: [pce, zip, 7z]
     hash_mode: content
     screenscraper_id: 31
+    igdb_id: 86
     sort_order: 70
 
   - id: pce-cd
@@ -212,6 +238,7 @@ platforms:
     extensions: [cue, bin, chd, zip, 7z]
     hash_mode: content
     screenscraper_id: 32
+    igdb_id: 150
     sort_order: 71
 
   - id: pc-fx
@@ -220,6 +247,7 @@ platforms:
     extensions: [cue, bin, chd, zip, 7z]
     hash_mode: content
     screenscraper_id: 33
+    igdb_id: 274
     sort_order: 72
 
   - id: ngpc
@@ -228,6 +256,7 @@ platforms:
     extensions: [ngc, ngp, zip, 7z]
     hash_mode: content
     screenscraper_id: 25
+    igdb_id: 120
     sort_order: 73
 
   - id: ws
@@ -236,6 +265,7 @@ platforms:
     extensions: [ws, zip, 7z]
     hash_mode: content
     screenscraper_id: 45
+    igdb_id: 57
     sort_order: 74
 
   - id: wsc
@@ -244,6 +274,7 @@ platforms:
     extensions: [wsc, zip, 7z]
     hash_mode: content
     screenscraper_id: 46
+    igdb_id: 136
     sort_order: 75
 
   - id: poke-mini
@@ -252,6 +283,7 @@ platforms:
     extensions: [min, zip, 7z]
     hash_mode: content
     screenscraper_id: 24
+    igdb_id: 166
     sort_order: 76
 
   - id: game-watch
@@ -259,6 +291,7 @@ platforms:
     directory: GAME WATCH
     extensions: [mgw, zip, 7z]
     hash_mode: content
+    igdb_id: 307
     sort_order: 77
 
   - id: dos
@@ -267,6 +300,7 @@ platforms:
     extensions: [zip, 7z, exe, bat]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 13
     sort_order: 80
 
   - id: naomi
@@ -275,6 +309,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 214
     sort_order: 90
 
   - id: fbneo-act
@@ -283,6 +318,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 100
 
   - id: fbneo-act-v
@@ -292,6 +328,7 @@ platforms:
     hash_mode: archive
     rename_policy: deny
     scrape_as: fbneo-act
+    igdb_id: 52
     sort_order: 101
 
   - id: fbneo-act-hack
@@ -301,6 +338,7 @@ platforms:
     hash_mode: archive
     rename_policy: deny
     scrape_as: fbneo-act
+    igdb_id: 52
     sort_order: 102
 
   - id: fbneo-stg
@@ -309,6 +347,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 110
 
   - id: fbneo-stg-v
@@ -318,6 +357,7 @@ platforms:
     hash_mode: archive
     rename_policy: deny
     scrape_as: fbneo-stg
+    igdb_id: 52
     sort_order: 111
 
   - id: fbneo-stg-hack
@@ -327,6 +367,7 @@ platforms:
     hash_mode: archive
     rename_policy: deny
     scrape_as: fbneo-stg
+    igdb_id: 52
     sort_order: 112
 
   - id: fbneo-ftg
@@ -335,6 +376,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 120
 
   - id: fbneo-ftg-hack
@@ -344,6 +386,7 @@ platforms:
     hash_mode: archive
     rename_policy: deny
     scrape_as: fbneo-ftg
+    igdb_id: 52
     sort_order: 121
 
   - id: fbneo-fly
@@ -352,6 +395,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 130
 
   - id: fbneo-fly-v
@@ -361,6 +405,7 @@ platforms:
     hash_mode: archive
     rename_policy: deny
     scrape_as: fbneo-fly
+    igdb_id: 52
     sort_order: 131
 
   - id: fbneo-etc
@@ -369,6 +414,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 140
 
   - id: fbneo-etc-v
@@ -378,6 +424,7 @@ platforms:
     hash_mode: archive
     rename_policy: deny
     scrape_as: fbneo-etc
+    igdb_id: 52
     sort_order: 141
 
   - id: fbneo-spo
@@ -386,6 +433,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 150
 
   - id: fbneo-rac
@@ -394,6 +442,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 151
 
   - id: mame-act
@@ -402,6 +451,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 160
 
   - id: mame-stg
@@ -410,6 +460,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 170
 
   - id: mame-stg-v
@@ -419,6 +470,7 @@ platforms:
     hash_mode: archive
     rename_policy: deny
     scrape_as: mame-stg
+    igdb_id: 52
     sort_order: 171
 
   - id: mame-ftg
@@ -427,6 +479,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 180
 
   - id: mame-ftg-hack
@@ -436,6 +489,7 @@ platforms:
     hash_mode: archive
     rename_policy: deny
     scrape_as: mame-ftg
+    igdb_id: 52
     sort_order: 181
 
   - id: mame-fly
@@ -444,6 +498,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 190
 
   - id: mame-fly-v
@@ -453,6 +508,7 @@ platforms:
     hash_mode: archive
     rename_policy: deny
     scrape_as: mame-fly
+    igdb_id: 52
     sort_order: 191
 
   - id: mame-etc
@@ -461,6 +517,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 200
 
   - id: mame-spo
@@ -469,6 +526,7 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 210
 
   - id: mame-rac
@@ -477,4 +535,5 @@ platforms:
     extensions: [zip]
     hash_mode: archive
     rename_policy: deny
+    igdb_id: 52
     sort_order: 211

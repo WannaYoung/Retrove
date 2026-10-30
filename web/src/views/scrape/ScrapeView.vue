@@ -13,14 +13,13 @@ import {
   NTag,
 } from "naive-ui";
 import { ColorWandOutline } from "@vicons/ionicons5";
-import { defaultScrapeFields, type ScrapeFields, type ScrapeWriteMode } from "../../api/client";
+import { defaultScrapeFields, type ScrapeFields } from "../../api/client";
 import { useAppStore } from "../app/composables/useApp";
 
 const app = useAppStore();
 
 const showModal = ref(false);
 const scope = ref<"missing" | "all">("missing");
-const writeMode = ref<ScrapeWriteMode>("update");
 const fields = reactive<ScrapeFields>(defaultScrapeFields());
 
 const canStart = computed(
@@ -52,7 +51,6 @@ watch(
 function openModal() {
   fields.title_zh = false;
   scope.value = "missing";
-  writeMode.value = "update";
   showModal.value = true;
 }
 
@@ -63,7 +61,7 @@ async function confirmScrape() {
   await app.runScrape("batch", undefined, {
     platform_id: app.scrapePlatformId,
     only_missing: scope.value === "missing",
-    write_mode: writeMode.value,
+    write_mode: "update",
     fields: { ...fields, title_zh: false },
   });
 }
@@ -82,11 +80,11 @@ const progressPct = computed(() => Math.round(Math.min(1, Math.max(0, app.jobPro
       <div class="stat wide">
         <label>{{ app.t("scrape.sourcesReady") }}</label>
         <div class="source-chips">
-          <n-tag size="small" round :type="app.scrapeStatus?.screenscraper_configured ? 'success' : 'default'">
-            {{ app.t("scrape.sourceSS") }}
-          </n-tag>
           <n-tag size="small" round :type="app.scrapeStatus?.igdb_configured ? 'success' : 'default'">
             {{ app.t("scrape.sourceIGDB") }}
+          </n-tag>
+          <n-tag size="small" round :type="app.scrapeStatus?.screenscraper_configured ? 'success' : 'default'">
+            {{ app.t("scrape.sourceSS") }}
           </n-tag>
           <n-tag size="small" round :type="app.scrapeStatus?.steamgriddb_configured ? 'success' : 'default'">
             {{ app.t("scrape.sourceSGDB") }}
@@ -162,12 +160,6 @@ const progressPct = computed(() => Math.round(Math.min(1, Math.max(0, app.jobPro
           <n-radio-group v-model:value="scope" name="scrape-scope">
             <n-radio value="missing">{{ app.t("scrape.scopeMissing") }}</n-radio>
             <n-radio value="all">{{ app.t("scrape.scopeAll") }}</n-radio>
-          </n-radio-group>
-        </n-form-item>
-        <n-form-item :label="app.t('scrape.writeMode')">
-          <n-radio-group v-model:value="writeMode" name="scrape-write-mode">
-            <n-radio value="update">{{ app.t("scrape.writeUpdate") }}</n-radio>
-            <n-radio value="overwrite">{{ app.t("scrape.writeOverwrite") }}</n-radio>
           </n-radio-group>
         </n-form-item>
         <n-form-item :label="app.t('scrape.fields')">

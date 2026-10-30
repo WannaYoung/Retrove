@@ -19,60 +19,22 @@ func Open(path string) (*sql.DB, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
-	if err := Migrate(db); err != nil {
+	if err := EnsureSchema(db); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
 	return db, nil
 }
 
-func Migrate(db *sql.DB) error {
-	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
-		version INTEGER PRIMARY KEY,
-		applied_at TEXT NOT NULL
-	)`); err != nil {
-		return fmt.Errorf("create schema_migrations: %w", err)
-	}
-	var current int
-	err := db.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM schema_migrations`).Scan(&current)
-	if err != nil {
-		return err
-	}
-	for _, m := range migrations {
-		if m.Version <= current {
-			continue
-		}
-		tx, err := db.Begin()
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(m.SQL); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("migrate v%d: %w", m.Version, err)
-		}
-		if _, err := tx.Exec(`INSERT INTO schema_migrations (version, applied_at) VALUES (?, datetime('now'))`, m.Version); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("record migrate v%d: %w", m.Version, err)
-		}
-		if err := tx.Commit(); err != nil {
-			return err
-		}
+// EnsureSchema creates the current tables. Empty databases are the supported path.
+func EnsureSchema(db *sql.DB) error {
+	if _, err := db.Exec(schemaSQL); err != nil {
+		return fmt.Errorf("ensure schema: %w", err)
 	}
 	return nil
 }
 
-type migration struct {
-	Version int
-	SQL     string
-}
-
-var migrations = []migration{
-	{1, migrationV1},
-	{2, migrationV2},
-	{3, migrationV3},
-}
-
-const migrationV1 = `
+const schemaSQL = `
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,
@@ -86,10 +48,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   user_id INTEGER NOT NULL,
   expires_at TEXT NOT NULL
 );
-`
 
-const migrationV2 = `
-CREATE TABLE platforms (
+CREATE TABLE IF NOT EXISTS platforms (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   directory TEXT NOT NULL UNIQUE,
@@ -97,11 +57,12 @@ CREATE TABLE platforms (
   hash_mode TEXT NOT NULL DEFAULT 'content',
   rename_policy TEXT NOT NULL DEFAULT 'allow',
   screenscraper_id INTEGER NOT NULL DEFAULT 0,
+  igdb_id INTEGER NOT NULL DEFAULT 0,
   scrape_as TEXT NOT NULL DEFAULT '',
   sort_order INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE games (
+CREATE TABLE IF NOT EXISTS games (
   id INTEGER PRIMARY KEY,
   platform_id TEXT NOT NULL REFERENCES platforms(id),
   title_zh TEXT NOT NULL DEFAULT '',
@@ -110,16 +71,17 @@ CREATE TABLE games (
   description TEXT NOT NULL DEFAULT '',
   developer TEXT NOT NULL DEFAULT '',
   release_year INTEGER,
-  title_zh_locked INTEGER NOT NULL DEFAULT 0,
+  title_zh_locked INTEGER NOT NULL DEFAULT 1,
+  description_locked INTEGER NOT NULL DEFAULT 1,
   scrape_id TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
 
-CREATE INDEX idx_games_platform ON games(platform_id);
-CREATE INDEX idx_games_title_zh ON games(title_zh);
+CREATE INDEX IF NOT EXISTS idx_games_platform ON games(platform_id);
+CREATE INDEX IF NOT EXISTS idx_games_title_zh ON games(title_zh);
 
-CREATE TABLE rom_files (
+CREATE TABLE IF NOT EXISTS rom_files (
   id INTEGER PRIMARY KEY,
   platform_id TEXT NOT NULL REFERENCES platforms(id),
   game_id INTEGER REFERENCES games(id),
@@ -135,13 +97,13 @@ CREATE TABLE rom_files (
   updated_at TEXT NOT NULL
 );
 
-CREATE UNIQUE INDEX idx_rom_files_sha1_size ON rom_files(sha1, size) WHERE sha1 != '';
-CREATE INDEX idx_rom_files_md5 ON rom_files(md5);
-CREATE INDEX idx_rom_files_crc32 ON rom_files(crc32);
-CREATE INDEX idx_rom_files_platform ON rom_files(platform_id);
-CREATE INDEX idx_rom_files_game ON rom_files(game_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rom_files_sha1_size ON rom_files(sha1, size) WHERE sha1 != '';
+CREATE INDEX IF NOT EXISTS idx_rom_files_md5 ON rom_files(md5);
+CREATE INDEX IF NOT EXISTS idx_rom_files_crc32 ON rom_files(crc32);
+CREATE INDEX IF NOT EXISTS idx_rom_files_platform ON rom_files(platform_id);
+CREATE INDEX IF NOT EXISTS idx_rom_files_game ON rom_files(game_id);
 
-CREATE TABLE aliases (
+CREATE TABLE IF NOT EXISTS aliases (
   id INTEGER PRIMARY KEY,
   platform_id TEXT NOT NULL REFERENCES platforms(id),
   game_id INTEGER REFERENCES games(id),
@@ -150,9 +112,9 @@ CREATE TABLE aliases (
   UNIQUE(platform_id, kind, value)
 );
 
-CREATE INDEX idx_aliases_game ON aliases(game_id);
+CREATE INDEX IF NOT EXISTS idx_aliases_game ON aliases(game_id);
 
-CREATE TABLE media_assets (
+CREATE TABLE IF NOT EXISTS media_assets (
   id INTEGER PRIMARY KEY,
   game_id INTEGER NOT NULL REFERENCES games(id),
   kind TEXT NOT NULL,
@@ -161,7 +123,7 @@ CREATE TABLE media_assets (
   UNIQUE(game_id, kind)
 );
 
-CREATE TABLE scrape_cache (
+CREATE TABLE IF NOT EXISTS scrape_cache (
   id INTEGER PRIMARY KEY,
   key TEXT NOT NULL UNIQUE,
   source TEXT NOT NULL,
@@ -169,7 +131,7 @@ CREATE TABLE scrape_cache (
   updated_at TEXT NOT NULL
 );
 
-CREATE TABLE jobs (
+CREATE TABLE IF NOT EXISTS jobs (
   id INTEGER PRIMARY KEY,
   type TEXT NOT NULL,
   status TEXT NOT NULL,
@@ -179,9 +141,4 @@ CREATE TABLE jobs (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
-`
-
-const migrationV3 = `
-ALTER TABLE games ADD COLUMN description_locked INTEGER NOT NULL DEFAULT 1;
-UPDATE games SET title_zh_locked=1;
 `

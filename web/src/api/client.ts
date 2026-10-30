@@ -73,7 +73,7 @@ export type ScrapeApplyChoices = {
   logo: ScrapeSide;
 };
 
-export type MediaKind = "box" | "screenshot" | "title" | "logo";
+export type MediaKind = "box" | "screenshot" | "title" | "logo" | "video";
 
 export type ScrapeMediaImage = {
   url: string;
@@ -94,6 +94,7 @@ export type ScrapeMediaBrowse = {
 
 /** Which scrape sources can supply a given media kind. */
 export function providerSupportsKind(provider: string, kind: MediaKind): boolean {
+  if (kind === "video") return false;
   const p = provider.toLowerCase();
   switch (p) {
     case "screenscraper":

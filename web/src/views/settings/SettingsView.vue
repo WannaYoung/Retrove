@@ -190,39 +190,6 @@ const settingsTab = computed<SettingsTab>({
           <div class="provider-list">
             <div class="provider-row">
               <div>
-                <strong>{{ app.t("settings.ssTitle") }}</strong>
-                <n-tag
-                  size="tiny"
-                  round
-                  :type="app.settings?.screenscraper_configured ? 'success' : 'default'"
-                  class="provider-tag"
-                >
-                  {{ app.settings?.screenscraper_configured ? app.t("settings.statusOn") : app.t("settings.statusOff") }}
-                </n-tag>
-              </div>
-              <div class="provider-actions">
-                <n-button
-                  v-if="app.settings?.screenscraper_configured"
-                  secondary
-                  size="small"
-                  :loading="app.providerTesting === 'ss'"
-                  @click="app.testProvider('ss')"
-                >
-                  {{ app.t("settings.test") }}
-                </n-button>
-                <n-button secondary size="small" @click="app.openProvider('ss')">{{ app.t("settings.configure") }}</n-button>
-              </div>
-            </div>
-            <p
-              v-if="app.providerTestResult?.id === 'ss'"
-              class="provider-test-msg"
-              :class="{ ok: app.providerTestResult.ok, fail: !app.providerTestResult.ok }"
-            >
-              {{ app.providerTestResult.ok ? app.t("settings.testOk") : app.t("settings.testFail") }}
-              <span v-if="!app.providerTestResult.ok"> — {{ app.providerTestResult.message }}</span>
-            </p>
-            <div class="provider-row">
-              <div>
                 <strong>{{ app.t("settings.igdbTitle") }}</strong>
                 <n-tag
                   size="tiny"
@@ -248,6 +215,39 @@ const settingsTab = computed<SettingsTab>({
             </div>
             <p
               v-if="app.providerTestResult?.id === 'igdb'"
+              class="provider-test-msg"
+              :class="{ ok: app.providerTestResult.ok, fail: !app.providerTestResult.ok }"
+            >
+              {{ app.providerTestResult.ok ? app.t("settings.testOk") : app.t("settings.testFail") }}
+              <span v-if="!app.providerTestResult.ok"> — {{ app.providerTestResult.message }}</span>
+            </p>
+            <div class="provider-row">
+              <div>
+                <strong>{{ app.t("settings.ssTitle") }}</strong>
+                <n-tag
+                  size="tiny"
+                  round
+                  :type="app.settings?.screenscraper_configured ? 'success' : 'default'"
+                  class="provider-tag"
+                >
+                  {{ app.settings?.screenscraper_configured ? app.t("settings.statusOn") : app.t("settings.statusOff") }}
+                </n-tag>
+              </div>
+              <div class="provider-actions">
+                <n-button
+                  v-if="app.settings?.screenscraper_configured"
+                  secondary
+                  size="small"
+                  :loading="app.providerTesting === 'ss'"
+                  @click="app.testProvider('ss')"
+                >
+                  {{ app.t("settings.test") }}
+                </n-button>
+                <n-button secondary size="small" @click="app.openProvider('ss')">{{ app.t("settings.configure") }}</n-button>
+              </div>
+            </div>
+            <p
+              v-if="app.providerTestResult?.id === 'ss'"
               class="provider-test-msg"
               :class="{ ok: app.providerTestResult.ok, fail: !app.providerTestResult.ok }"
             >

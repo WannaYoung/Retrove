@@ -3,6 +3,7 @@ package library
 import (
 	"database/sql"
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -229,4 +230,26 @@ func (s *Service) UpdateGame(id int64, in UpdateGameInput) (Game, error) {
 		return Game{}, err
 	}
 	return s.GetGame(id)
+}
+
+// RenameROM points the game's ROM row at a new filename after the file on disk has moved.
+func (s *Service) RenameROM(gameID int64, oldFilename, newFilename, platformDir string) error {
+	oldFilename = filepath.Base(strings.TrimSpace(oldFilename))
+	newFilename = filepath.Base(strings.TrimSpace(newFilename))
+	if gameID <= 0 || oldFilename == "" || newFilename == "" || oldFilename == newFilename {
+		return nil
+	}
+	newPath := filepath.ToSlash(filepath.Join(platformDir, newFilename))
+	res, err := s.db.Exec(`UPDATE rom_files SET path=?, filename=?, updated_at=datetime('now') WHERE game_id=? AND filename=?`,
+		newPath, newFilename, gameID, oldFilename)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("未找到要改名的 ROM")
+	}
+	oldStem := strings.TrimSuffix(oldFilename, filepath.Ext(oldFilename))
+	newStem := strings.TrimSuffix(newFilename, filepath.Ext(newFilename))
+	_, err = s.db.Exec(`UPDATE aliases SET value=? WHERE game_id=? AND kind='filename' AND value=?`, newStem, gameID, oldStem)
+	return err
 }

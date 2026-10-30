@@ -171,6 +171,7 @@ watch(
 
 function setSide(key: keyof ScrapeApplyChoices, side: ScrapeSide) {
   if (!selected.value && side === "right") return;
+  if (side === "right" && rows.value.find((row) => row.key === key)?.left) return;
   choices[key] = side;
 }
 
@@ -310,6 +311,7 @@ function close() {
 
       <!-- 选中后：左右一一对应 -->
       <div v-if="selected" class="compare">
+        <p class="fill-note">{{ app.t("library.manualFillOnly") }}</p>
         <div class="compare-head">
           <span>{{ app.t("library.manualCurrent") }}</span>
           <span class="compare-head-right">
@@ -341,6 +343,7 @@ function close() {
               type="button"
               class="side-card"
               :class="{ active: choices[row.key] === 'right', media: row.kind === 'media' }"
+              :disabled="!!row.left"
               @click="setSide(row.key, 'right')"
             >
               <span class="side-tag">R</span>
@@ -392,6 +395,12 @@ function close() {
   opacity: 0.55;
   padding: 1.5rem 0.5rem;
   text-align: center;
+}
+
+.fill-note {
+  margin: 0 0 0.75rem;
+  opacity: 0.7;
+  font-size: 0.85rem;
 }
 
 .result-list {
@@ -517,6 +526,11 @@ function close() {
 .side-card.active {
   border-color: hsl(var(--primary));
   background: hsl(var(--primary) / 0.08);
+}
+
+.side-card:disabled {
+  cursor: default;
+  opacity: 0.72;
 }
 
 .side-card p {

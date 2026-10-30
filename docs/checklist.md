@@ -42,7 +42,7 @@ Also done: backend `:5080`, frontend `:5180`; single-user register/login (passwo
 
 - [x] Open SQLite; WAL + busy_timeout (`users` / `sessions` landed)
 - [x] Config load/validation; startup `EnsureDirs` for data/media/export/cache
-- [x] Versioned migrations: `schema_migrations` + v1(users/sessions) + v2(business tables)
+- [x] Empty database creates the current schema on startup (no incremental migrations)
 - [x] Tables: `platforms`, `games`, `rom_files`, `aliases`, `media_assets`, `scrape_cache`, `jobs`
 - [x] `rom_files`: unique `path`; partial unique `(sha1, size)`; indexes on `md5`/`crc32`
 - [x] `/app/config/platforms.yaml`: folder ↔ platform; Arcade `hash_mode=archive` + `rename_policy=deny`
@@ -74,11 +74,12 @@ Also done: backend `:5080`, frontend `:5180`; single-user register/login (passwo
 - [x] Import writes `aliases` (name / filename); dictionary file backup export later
 - [x] Game list/detail queries (platform + ZH/EN/filename search)
 - [x] Import per platform folder; do not merge `SFC` and `SFC hack`
-- [x] `title_zh_locked`: lockable in detail; import must not overwrite locked titles
-- [x] `PATCH /api/v1/games/{id}` for title/description/lock; `POST /api/v1/jobs/import-pegasus`
+- [x] Pegasus import overwrites Chinese title, description, and developer; copies `media/{ROM stem}/boxFront.*`, `logo.*`, and `video.*`; the detail panel can play and replace the preview video
+- [x] `PATCH /api/v1/games/{id}` writes Chinese title, description, and developer back to Pegasus metadata; host platforms also rename the ROM and media folder; arcade does not rename
+- [x] Replacing box / logo in the detail panel writes the Pegasus media folder; `POST /api/v1/jobs/import-pegasus`
 - [x] Detail sidebar editable + lockable (dedicated alias workbench polish later)
 
-**Done when:** After importing existing SFC/FC Pegasus, Chinese titles and blurbs are readable in DB.
+**Done when:** After importing an FC Pegasus tree, Chinese titles, blurbs, box art, logos, and preview videos match the files; a later import replaces those fields.
 
 ---
 
@@ -99,7 +100,7 @@ Also done: backend `:5080`, frontend `:5180`; single-user register/login (passwo
 ## Phase 5 — Multi-source scrape (ScreenScraper + IGDB + SteamGridDB)
 
 - [x] SS client: auth, rate limit, error classes (network / quota / not found)
-- [x] Query by content hash (arcade zip hash) → filename fallback; never overwrite locked Chinese titles
+- [x] Query by content hash (arcade zip hash) → filename fallback; existing fields and media are filled only when empty
 - [x] Fill English + media on `games` (unlocked fields) + `scrape_cache`
 - [x] Download media to `/app/data/media/...`, write `media_assets`
 - [x] After scrape, apply local dictionary to fill/correct `title_zh` (respect lock)
@@ -110,7 +111,7 @@ Also done: backend `:5080`, frontend `:5180`; single-user register/login (passwo
 - [x] SteamGridDB: by-name portrait covers (API Key)
 - [x] Settings: provider status on first level; credentials in nested dialog
 
-**Done when:** Any configured source can scrape; with SS creds, prefer hash; without SS, IGDB/SGDB can fill info/covers; clear job errors on offline/quota.
+**Done when:** Any configured source can scrape; batch prefers IGDB (English name + platform); SS fills remaining gaps; SGDB fills missing media only; clear job errors on offline/quota.
 
 ---
 
@@ -140,7 +141,6 @@ Also done: backend `:5080`, frontend `:5180`; single-user register/login (passwo
 ## Phase 8 — More export adapters
 
 - [ ] EmuELEC / EmulationStation: `gamelist.xml` + media conventions
-- [ ] Tianma: tables/media per real format docs
 - [ ] iisu: same
 - [ ] Cocoon: same
 - [ ] Extend `platforms.yaml` with each target’s system id / folder names
@@ -155,7 +155,7 @@ Also done: backend `:5080`, frontend `:5180`; single-user register/login (passwo
 - [ ] OpenAPI / route table documented
 - [ ] Unit tests for critical paths: hash rename merge, lock vs scrape, dictionary priority
 - [ ] Log levels; redact secrets
-- [ ] Backup notes: `data/retrove.db` + `config` + (optional) `data/media`
+- [ ] Backup notes: `config/retrove.db` + `config` + (optional) `data/media`
 - [ ] Multi-stage image; frontend static via Go embed or sidecar nginx (pick one in deploy guide)
 - [ ] Perf: large-library scan must not freeze API (worker goroutine or in-process queue)
 
@@ -169,7 +169,7 @@ Also done: backend `:5080`, frontend `:5180`; single-user register/login (passwo
 - [ ] LLM rename review queue (default no disk rename)
 - [ ] Multi-user access control
 - [ ] Optional PostgreSQL backend
-- [ ] Physical rename tool (respect Arcade deny)
+- [ ] Bulk physical rename tool (single-game detail save already renames host ROMs and media folders; arcade `rename_policy: deny` still does not rename)
 
 ---
 
@@ -189,9 +189,9 @@ Note: Phase 4 can overlap late Phase 3 (frontend on mocks); Phase 5 needs real S
 1. `docker compose up`  
 2. Mount an existing Chinese Pegasus ROM library  
 3. Scan succeeds; rename + rescan keeps identity  
-4. Import Pegasus; Chinese titles visible  
-5. Configure ScreenScraper; scrape at least one cover  
-6. Dictionary correct / lock Chinese title  
+4. Import Pegasus metadata; Chinese titles, blurbs, box art, logos, and preview videos visible  
+5. Translate to English, then scrape; existing Chinese titles and covers stay  
+6. Edit a Chinese title in the detail panel; ROM filename, metadata, and media folder update together  
 7. Export Pegasus to `app/data/export` (container `/app/data/export`)  
 8. Admin UI can do all of the above without code changes  
 

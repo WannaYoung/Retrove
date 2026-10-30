@@ -1,5 +1,8 @@
 # --- Secrets & local config ---
 app/config/config.yaml
+app/config/retrove.db
+app/config/retrove.db-wal
+app/config/retrove.db-shm
 *.local.yaml
 .env
 .env.*

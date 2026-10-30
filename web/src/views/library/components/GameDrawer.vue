@@ -26,6 +26,7 @@ const mediaKinds: { kind: MediaKind; labelKey: string }[] = [
   { kind: "screenshot", labelKey: "scrape.fieldScreenshot" },
   { kind: "title", labelKey: "scrape.fieldTitle" },
   { kind: "logo", labelKey: "scrape.fieldLogo" },
+  { kind: "video", labelKey: "library.video" },
 ];
 
 const canManual = computed(
@@ -37,11 +38,11 @@ const sourceButtons = computed(() => {
   if (app.scrapeStatus?.screenscraper_configured || app.settings?.screenscraper_configured) {
     list.push({ id: "screenscraper", short: "SS", labelKey: "scrape.sourceSS" });
   }
-  if (app.scrapeStatus?.steamgriddb_configured || app.settings?.steamgriddb_configured) {
-    list.push({ id: "steamgriddb", short: "SGDB", labelKey: "scrape.sourceSGDB" });
-  }
   if (app.scrapeStatus?.igdb_configured || app.settings?.igdb_configured) {
     list.push({ id: "igdb", short: "IGDB", labelKey: "scrape.sourceIGDB" });
+  }
+  if (app.scrapeStatus?.steamgriddb_configured || app.settings?.steamgriddb_configured) {
+    list.push({ id: "steamgriddb", short: "SGDB", labelKey: "scrape.sourceSGDB" });
   }
   return list;
 });
@@ -136,9 +137,16 @@ async function onFileChange(kind: MediaKind, ev: Event) {
       <div class="media-block">
         <h3>{{ app.t("library.media") }}</h3>
         <div class="media-grid">
-          <div v-for="m in mediaKinds" :key="m.kind" class="media-item">
+          <div v-for="m in mediaKinds" :key="m.kind" class="media-item" :class="m.kind">
             <div class="media-thumb">
-              <img v-if="app.mediaPath(m.kind)" :src="mediaURL(app.mediaPath(m.kind))" alt="" />
+              <video
+                v-if="m.kind === 'video' && app.mediaPath(m.kind)"
+                :src="mediaURL(app.mediaPath(m.kind))"
+                controls
+                playsinline
+                preload="metadata"
+              />
+              <img v-else-if="app.mediaPath(m.kind)" :src="mediaURL(app.mediaPath(m.kind))" alt="" />
               <span v-else class="empty">{{ app.t(m.labelKey) }}</span>
             </div>
             <div class="media-actions">
@@ -170,7 +178,7 @@ async function onFileChange(kind: MediaKind, ev: Event) {
               <input
                 :ref="(el) => (fileInputs[m.kind] = el as HTMLInputElement | null)"
                 type="file"
-                accept="image/*"
+                :accept="m.kind === 'video' ? 'video/mp4,video/webm,video/*' : 'image/*'"
                 hidden
                 @change="onFileChange(m.kind, $event)"
               />
@@ -297,6 +305,31 @@ async function onFileChange(kind: MediaKind, ev: Event) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.media-item.logo .media-thumb {
+  background: hsl(0 0% 12% / 0.72);
+}
+
+.media-item.logo .media-thumb img {
+  object-fit: contain;
+  padding: 0.4rem;
+}
+
+.media-item.video {
+  grid-column: 1 / -1;
+}
+
+.media-item.video .media-thumb {
+  aspect-ratio: 16 / 9;
+  background: hsl(0 0% 8% / 0.85);
+}
+
+.media-item.video .media-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #111;
 }
 
 .media-thumb .empty {

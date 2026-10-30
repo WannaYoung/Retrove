@@ -101,9 +101,8 @@ func (o *Options) Normalize() {
 		o.Fields = DefaultFields()
 	}
 	o.Fields.TitleZH = false
-	if o.WriteMode != WriteOverwrite {
-		o.WriteMode = WriteUpdate
-	}
+	// Third-party scrape only fills empty fields and media.
+	o.WriteMode = WriteUpdate
 	switch o.Mode {
 	case ModeMissing:
 		o.OnlyMissing = true
@@ -186,6 +185,7 @@ type target struct {
 	Size              int64
 	Missing           bool
 	SSSystemID        int
+	IGDBPlatformID    int
 	HashMode          string
 	RenamePolicy      string
 	HasBox            bool
@@ -298,6 +298,7 @@ func (s *Service) listTargets(opts Options) ([]target, error) {
 		return nil, err
 	}
 	ssID := map[string]int{}
+	igdbID := map[string]int{}
 	hashMode := map[string]string{}
 	rename := map[string]string{}
 	scrapeAs := map[string]string{}
@@ -306,6 +307,7 @@ func (s *Service) listTargets(opts Options) ([]target, error) {
 		rename[p.ID] = p.RenamePolicy
 		scrapeAs[p.ID] = p.ScrapeAs
 		ssID[p.ID] = p.ScreenScraperID
+		igdbID[p.ID] = p.IGDBID
 	}
 	for id, as := range scrapeAs {
 		if as == "" {
@@ -313,6 +315,9 @@ func (s *Service) listTargets(opts Options) ([]target, error) {
 		}
 		if parent, ok := ssID[as]; ok && parent > 0 {
 			ssID[id] = parent
+		}
+		if parent, ok := igdbID[as]; ok && parent > 0 {
+			igdbID[id] = parent
 		}
 	}
 
@@ -381,6 +386,7 @@ func (s *Service) listTargets(opts Options) ([]target, error) {
 			continue
 		}
 		t.SSSystemID = ssID[t.PlatformID]
+		t.IGDBPlatformID = igdbID[t.PlatformID]
 		t.HashMode = hashMode[t.PlatformID]
 		t.RenamePolicy = rename[t.PlatformID]
 		out = append(out, t)
@@ -393,9 +399,7 @@ func (s *Service) scrapeOne(ctx context.Context, t target, fields Fields, writeM
 		return false, 0, false, nil, nil
 	}
 	fields.TitleZH = false
-	if writeMode != WriteOverwrite {
-		writeMode = WriteUpdate
-	}
+	writeMode = WriteUpdate
 	if !fields.anyMeta() && !fields.anyMedia() {
 		return false, 0, false, nil, nil
 	}
@@ -420,109 +424,23 @@ func (s *Service) scrapeOne(ctx context.Context, t target, fields Fields, writeM
 		used = append(used, name)
 	}
 
-	// 1) ScreenScraper — prefer all metadata + media when configured
-	if hasSS {
-		info, fromCache, _, ssErr := s.lookupSS(ctx, cur)
-		if ssErr == nil {
-			markUsed("screenscraper")
-			cached = fromCache
-			if fields.anyMeta() {
-				if err := s.applyInfo(cur, info, "ss:"+info.ID, fields, writeMode); err != nil {
-					return false, 0, cached, used, err
-				}
-				updated = true
-				if fields.TitleEN {
-					cur.TitleEN = mergeStr(writeMode, cur.TitleEN, info.TitleEN)
-				}
-				if fields.Description {
-					cur.Description = mergeStr(writeMode, cur.Description, info.Description)
-				}
-				if fields.Developer {
-					cur.Developer = mergeStr(writeMode, cur.Developer, firstNonEmpty(info.Developer, info.Publisher))
-				}
-				cur.ScrapeID = "ss:" + info.ID
-			}
-			if fields.anyMedia() {
-				n, dlErr := s.downloadSSMedias(ctx, cur, info, fields, writeMode)
-				mediaN += n
-				if n > 0 {
-					updated = true
-				}
-				if dlErr != nil {
-					kind := AsKind(dlErr)
-					if kind == KindQuota || kind == KindAuth {
-						return fatal(dlErr)
-					}
-					lastErr = dlErr
-				}
-			}
-		} else {
-			kind := AsKind(ssErr)
-			if kind == KindQuota || kind == KindAuth {
-				return fatal(ssErr)
-			}
-			if kind != KindNotFound {
-				lastErr = ssErr
-			}
-		}
+	needMeta := func(mode WriteMode) bool {
+		return fields.anyMeta() && (mode == WriteOverwrite ||
+			(fields.TitleEN && cur.TitleEN == "") ||
+			(fields.Description && cur.Description == "") ||
+			(fields.Developer && cur.Developer == ""))
 	}
 
-	// 2) SteamGridDB — box/title/logo (grids/heroes/logos); keep hero for screenshot fallback
-	var sgdbHero string
-	needMedia := s.mediaNeeds(cur.GameID, fields, writeMode)
-	if hasSGDB && (needMedia[KindBox] || needMedia[KindTitle] || needMedia[KindLogo] || needMedia[KindScreenshot]) {
-		q := strings.TrimSpace(cur.TitleEN)
-		gameID, gameName, sgErr := s.sgdb.ResolveGameID(ctx, q)
-		if sgErr == nil {
-			bundle, bErr := s.sgdb.MediaBundleForGame(ctx, gameID, gameName)
-			if bErr == nil {
-				markUsed("steamgriddb")
-				sgdbHero = bundle.Title
-				for _, kind := range []string{KindBox, KindTitle, KindLogo} {
-					if !needMedia[kind] {
-						continue
-					}
-					url := bundle.URLFor(kind)
-					if url == "" {
-						continue
-					}
-					n, dlErr := s.saveRemoteMedia(ctx, cur, kind, url, "steamgriddb")
-					if dlErr != nil {
-						k := AsKind(dlErr)
-						if k == KindQuota || k == KindAuth {
-							return fatal(dlErr)
-						}
-						lastErr = dlErr
-						continue
-					}
-					mediaN += n
-					updated = true
-				}
-			} else if AsKind(bErr) != KindNotFound {
-				lastErr = bErr
-			}
-		} else {
-			kind := AsKind(sgErr)
-			if kind == KindQuota || kind == KindAuth {
-				return fatal(sgErr)
-			}
-			if kind != KindNotFound {
-				lastErr = sgErr
-			}
-		}
-	}
+	igdbUsed := false
+	ssUsed := false
 
-	// 3) IGDB — metadata + SGDB gaps (box/title) + screenshots
-	needMeta := fields.anyMeta() && (writeMode == WriteOverwrite ||
-		(fields.TitleEN && cur.TitleEN == "") ||
-		(fields.Description && cur.Description == "") ||
-		(fields.Developer && cur.Developer == ""))
-	needMedia = s.mediaNeeds(cur.GameID, fields, writeMode)
-	igdbHadScreenshot := false
-	if hasIGDB && (needMeta || needMedia[KindBox] || needMedia[KindTitle] || needMedia[KindScreenshot]) {
+	// 1) IGDB — primary: English name + platform → metadata, box, screenshot
+	needMedia := s.mediaNeeds(cur.GameID, fields)
+	if hasIGDB && (needMeta(writeMode) || needMedia[KindBox] || needMedia[KindTitle] || needMedia[KindScreenshot]) {
 		q := strings.TrimSpace(cur.TitleEN)
-		ig, igErr := s.igdb.SearchGamePrefer(ctx, q, needMedia[KindScreenshot])
+		ig, igErr := s.igdb.SearchGamePrefer(ctx, q, cur.IGDBPlatformID, needMedia[KindScreenshot])
 		if igErr == nil {
+			igdbUsed = true
 			markUsed("igdb")
 			info := &GameInfo{
 				ID:          formatIGDBID(ig.ID),
@@ -535,7 +453,7 @@ func (s *Service) scrapeOne(ctx context.Context, t target, fields Fields, writeM
 			if scrapeID == "" || strings.HasPrefix(scrapeID, "igdb:") {
 				scrapeID = info.ID
 			}
-			if fields.anyMeta() && needMeta {
+			if fields.anyMeta() && needMeta(writeMode) {
 				if err := s.applyInfo(cur, info, scrapeID, fields, writeMode); err != nil {
 					return updated, mediaN, cached, used, err
 				}
@@ -553,7 +471,6 @@ func (s *Service) scrapeOne(ctx context.Context, t target, fields Fields, writeM
 					cur.ScrapeID = scrapeID
 				}
 			}
-			// Prefer media already returned with search (avoids 3 extra IGDB calls / rate limits).
 			bundle := ig.Bundle()
 			if (needMedia[KindBox] && bundle.Box == "") ||
 				(needMedia[KindTitle] && bundle.Title == "") ||
@@ -569,9 +486,6 @@ func (s *Service) scrapeOne(ctx context.Context, t target, fields Fields, writeM
 						lastErr = bErr
 					}
 				}
-			}
-			if bundle.Screenshot != "" {
-				igdbHadScreenshot = true
 			}
 			for _, kind := range []string{KindBox, KindTitle, KindScreenshot} {
 				if !needMedia[kind] {
@@ -604,20 +518,119 @@ func (s *Service) scrapeOne(ctx context.Context, t target, fields Fields, writeM
 		}
 	}
 
-	// 4) Screenshot fallback — SGDB hero only when IGDB did not supply a screenshot URL.
-	needMedia = s.mediaNeeds(cur.GameID, fields, writeMode)
-	if needMedia[KindScreenshot] && sgdbHero != "" && !igdbHadScreenshot {
-		n, dlErr := s.saveRemoteMedia(ctx, cur, KindScreenshot, sgdbHero, "steamgriddb")
-		if dlErr != nil {
-			k := AsKind(dlErr)
-			if k == KindQuota || k == KindAuth {
-				return fatal(dlErr)
+	// Later sources only fill remaining gaps so they cannot override IGDB.
+	fillMode := writeMode
+	if igdbUsed {
+		fillMode = WriteUpdate
+	}
+
+	// 2) ScreenScraper — remaining metadata + media (hash match)
+	needMedia = s.mediaNeeds(cur.GameID, fields)
+	if hasSS && (needMeta(fillMode) || len(needMedia) > 0) {
+		info, fromCache, _, ssErr := s.lookupSS(ctx, cur)
+		if ssErr == nil {
+			ssUsed = true
+			markUsed("screenscraper")
+			cached = fromCache
+			if fields.anyMeta() && needMeta(fillMode) {
+				if err := s.applyInfo(cur, info, "ss:"+info.ID, fields, fillMode); err != nil {
+					return false, 0, cached, used, err
+				}
+				updated = true
+				if fields.TitleEN {
+					cur.TitleEN = mergeStr(fillMode, cur.TitleEN, info.TitleEN)
+				}
+				if fields.Description {
+					cur.Description = mergeStr(fillMode, cur.Description, info.Description)
+				}
+				if fields.Developer {
+					cur.Developer = mergeStr(fillMode, cur.Developer, firstNonEmpty(info.Developer, info.Publisher))
+				}
+				if strings.TrimSpace(cur.ScrapeID) == "" {
+					cur.ScrapeID = "ss:" + info.ID
+				}
 			}
-			lastErr = dlErr
+			if fields.anyMedia() {
+				n, dlErr := s.downloadSSMedias(ctx, cur, info, fields)
+				mediaN += n
+				if n > 0 {
+					updated = true
+				}
+				if dlErr != nil {
+					kind := AsKind(dlErr)
+					if kind == KindQuota || kind == KindAuth {
+						return fatal(dlErr)
+					}
+					lastErr = dlErr
+				}
+			}
 		} else {
-			mediaN += n
-			updated = true
-			markUsed("steamgriddb")
+			kind := AsKind(ssErr)
+			if kind == KindQuota || kind == KindAuth {
+				return fatal(ssErr)
+			}
+			if kind != KindNotFound {
+				lastErr = ssErr
+			}
+		}
+	}
+
+	// 3) SteamGridDB — fill missing media only (grids/heroes/logos; hero as screenshot fallback)
+	if igdbUsed || ssUsed {
+		fillMode = WriteUpdate
+	}
+	needMedia = s.mediaNeeds(cur.GameID, fields)
+	if hasSGDB && (needMedia[KindBox] || needMedia[KindTitle] || needMedia[KindLogo] || needMedia[KindScreenshot]) {
+		q := strings.TrimSpace(cur.TitleEN)
+		gameID, gameName, sgErr := s.sgdb.ResolveGameID(ctx, q)
+		if sgErr == nil {
+			bundle, bErr := s.sgdb.MediaBundleForGame(ctx, gameID, gameName)
+			if bErr == nil {
+				markUsed("steamgriddb")
+				for _, kind := range []string{KindBox, KindTitle, KindLogo} {
+					if !needMedia[kind] {
+						continue
+					}
+					url := bundle.URLFor(kind)
+					if url == "" {
+						continue
+					}
+					n, dlErr := s.saveRemoteMedia(ctx, cur, kind, url, "steamgriddb")
+					if dlErr != nil {
+						k := AsKind(dlErr)
+						if k == KindQuota || k == KindAuth {
+							return fatal(dlErr)
+						}
+						lastErr = dlErr
+						continue
+					}
+					mediaN += n
+					updated = true
+				}
+				if needMedia[KindScreenshot] && bundle.Title != "" {
+					n, dlErr := s.saveRemoteMedia(ctx, cur, KindScreenshot, bundle.Title, "steamgriddb")
+					if dlErr != nil {
+						k := AsKind(dlErr)
+						if k == KindQuota || k == KindAuth {
+							return fatal(dlErr)
+						}
+						lastErr = dlErr
+					} else {
+						mediaN += n
+						updated = true
+					}
+				}
+			} else if AsKind(bErr) != KindNotFound {
+				lastErr = bErr
+			}
+		} else {
+			kind := AsKind(sgErr)
+			if kind == KindQuota || kind == KindAuth {
+				return fatal(sgErr)
+			}
+			if kind != KindNotFound {
+				lastErr = sgErr
+			}
 		}
 	}
 
@@ -630,10 +643,10 @@ func (s *Service) scrapeOne(ctx context.Context, t target, fields Fields, writeM
 	return updated, mediaN, cached, used, nil
 }
 
-func (s *Service) mediaNeeds(gameID int64, fields Fields, writeMode WriteMode) map[string]bool {
+func (s *Service) mediaNeeds(gameID int64, fields Fields) map[string]bool {
 	out := map[string]bool{}
 	for _, kind := range fields.mediaKinds() {
-		if writeMode == WriteOverwrite || !s.hasMedia(gameID, kind) {
+		if !s.hasMedia(gameID, kind) {
 			out[kind] = true
 		}
 	}
@@ -684,26 +697,24 @@ func (s *Service) lookupSS(ctx context.Context, t target) (*GameInfo, bool, []by
 
 func (s *Service) applyInfo(t target, info *GameInfo, scrapeID string, fields Fields, writeMode WriteMode) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	if writeMode != WriteOverwrite {
-		writeMode = WriteUpdate
-	}
+	writeMode = WriteUpdate
 
 	titleEN := t.TitleEN
-	if fields.TitleEN {
+	if fields.TitleEN && strings.TrimSpace(t.TitleEN) == "" {
 		titleEN = mergeStr(writeMode, t.TitleEN, info.TitleEN)
 	}
 	desc := t.Description
-	if fields.Description && !t.DescriptionLocked {
+	if fields.Description && strings.TrimSpace(t.Description) == "" {
 		desc = mergeStr(writeMode, t.Description, info.Description)
 	}
 	dev := t.Developer
-	if fields.Developer {
+	if fields.Developer && strings.TrimSpace(t.Developer) == "" {
 		dev = mergeStr(writeMode, t.Developer, firstNonEmpty(info.Developer, info.Publisher))
 	}
 
-	// Batch scrape never writes Chinese titles.
+	// Never replace an existing Chinese title. Batch scrape also forces this field off.
 	titleZH := t.TitleZH
-	if fields.TitleZH && !t.TitleZHLocked {
+	if fields.TitleZH && !t.TitleZHLocked && strings.TrimSpace(t.TitleZH) == "" {
 		if zh := s.dictionaryTitle(t.PlatformID, titleEN, t.Filename); zh != "" {
 			titleZH = mergeStr(writeMode, t.TitleZH, zh)
 		} else {
@@ -712,8 +723,8 @@ func (s *Service) applyInfo(t target, info *GameInfo, scrapeID string, fields Fi
 	}
 
 	year := t.ReleaseYear
-	if info.ReleaseYear > 0 {
-		year = mergeYear(writeMode, t.ReleaseYear, info.ReleaseYear)
+	if t.ReleaseYear <= 0 && info.ReleaseYear > 0 {
+		year = info.ReleaseYear
 	}
 	var yearVal any
 	if year > 0 {
@@ -767,11 +778,11 @@ func (s *Service) dictionaryTitle(platformID, titleEN, filename string) string {
 	return ""
 }
 
-func (s *Service) downloadSSMedias(ctx context.Context, t target, info *GameInfo, fields Fields, writeMode WriteMode) (int, error) {
+func (s *Service) downloadSSMedias(ctx context.Context, t target, info *GameInfo, fields Fields) (int, error) {
 	kinds := fields.mediaKinds()
 	n := 0
 	for _, kind := range kinds {
-		if writeMode != WriteOverwrite && s.hasMedia(t.GameID, kind) {
+		if s.hasMedia(t.GameID, kind) {
 			continue
 		}
 		ref, ok := PreferMedia(info.Medias, kind)

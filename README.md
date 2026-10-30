@@ -13,8 +13,9 @@ Inspired by tools like RomM, with Chinese titles and China-oriented frontend exp
 - Multi-platform ROM libraries (FC / SFC / MD / FBNeo / MAME, and more)
 - Stable identity via content hash (rename-safe): console ROMs hash inner payload; arcade hashes the zip
 - One file → one game entry (regions, hacks, and translations stay separate)
-- Scraping: ScreenScraper (primary) + optional IGDB / SteamGridDB; local Chinese dictionary import
-- Web console: browse, fix titles, lock Chinese names, scrape missing media, multi-theme UI (zh/en)
+- Pegasus import is authoritative for Chinese titles, descriptions, developers, box art, logos, and preview videos, and can be re-imported
+- Translation writes English titles. Scrape (IGDB → ScreenScraper → SteamGridDB) only fills empty fields and missing media
+- Web console: browse, edit one game, and write the Pegasus ROM name, metadata, and media folder back; multi-theme UI (zh/en)
 - Export toward Pegasus and other frontend layouts (see docs)
 - Docker / Compose friendly; single Go binary + Vue admin
 
@@ -72,9 +73,10 @@ Compose mounts `./app/config`, `./app/data`, and `./app/roms` into the container
 |------|---------|
 | `app/config/config.example.yaml` | Committed template |
 | `app/config/config.yaml` | Local secrets (gitignored) |
-| `app/config/platforms.yaml` | Directory name ↔ platform / ScreenScraper system id |
+| `app/config/platforms.yaml` | Directory name ↔ platform / ScreenScraper system id / IGDB platform id |
 | `app/config/dictionaries/` | Chinese dictionary import/export |
-| `app/data/` | SQLite, scraped media, cache, export output |
+| `app/config/retrove.db` | SQLite database (gitignored) |
+| `app/data/` | Scraped media, cache, export output |
 | `app/roms/` | Your ROM tree |
 
 Scraping credentials live only in `config.yaml` (or env overrides). Leave a provider empty to disable it; the rest of the app still works.

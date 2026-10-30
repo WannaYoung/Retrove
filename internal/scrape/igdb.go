@@ -166,9 +166,9 @@ func (c *IGDBClient) ListAssets(ctx context.Context, gameID int, assetType strin
 	return rows, nil
 }
 
-// ResolveGameID finds the first search match for a name.
-func (c *IGDBClient) ResolveGameID(ctx context.Context, name string) (int, string, error) {
-	games, err := c.SearchGames(ctx, name, 1)
+// ResolveGameID finds the first search match for a name, optionally filtered by IGDB platform id.
+func (c *IGDBClient) ResolveGameID(ctx context.Context, name string, platformID int) (int, string, error) {
+	games, err := c.SearchGames(ctx, name, platformID, 1)
 	if err != nil {
 		return 0, "", err
 	}
@@ -290,13 +290,14 @@ func parseIGDBGames(raw []byte) ([]IGDBGame, error) {
 	return out, nil
 }
 
-func (c *IGDBClient) SearchGame(ctx context.Context, name string) (*IGDBGame, error) {
-	return c.SearchGamePrefer(ctx, name, false)
+func (c *IGDBClient) SearchGame(ctx context.Context, name string, platformID int) (*IGDBGame, error) {
+	return c.SearchGamePrefer(ctx, name, platformID, false)
 }
 
-// SearchGamePrefer searches up to 5 hits. When preferScreenshot is set, picks the first hit that has screenshots.
-func (c *IGDBClient) SearchGamePrefer(ctx context.Context, name string, preferScreenshot bool) (*IGDBGame, error) {
-	games, err := c.SearchGames(ctx, name, 5)
+// SearchGamePrefer searches up to 5 hits on an IGDB platform (0 = any).
+// When preferScreenshot is set, picks the first hit that has screenshots.
+func (c *IGDBClient) SearchGamePrefer(ctx context.Context, name string, platformID int, preferScreenshot bool) (*IGDBGame, error) {
+	games, err := c.SearchGames(ctx, name, platformID, 5)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +314,7 @@ func (c *IGDBClient) SearchGamePrefer(ctx context.Context, name string, preferSc
 	return &games[0], nil
 }
 
-func (c *IGDBClient) SearchGames(ctx context.Context, name string, limit int) ([]IGDBGame, error) {
+func (c *IGDBClient) SearchGames(ctx context.Context, name string, platformID, limit int) ([]IGDBGame, error) {
 	if !c.Configured() {
 		return nil, classify(KindConfig, "未配置 IGDB", nil)
 	}
@@ -328,20 +329,36 @@ func (c *IGDBClient) SearchGames(ctx context.Context, name string, limit int) ([
 		return nil, err
 	}
 
-	escaped := strings.ReplaceAll(name, `"`, "")
-	body := fmt.Sprintf(`search "%s"; fields %s; limit %d;`, escaped, igdbGameFields, limit)
-	raw, err := c.post(ctx, "/games", body)
+	out, err := c.searchGamesOnce(ctx, name, platformID, limit)
 	if err != nil {
 		return nil, err
 	}
-	out, err := parseIGDBGames(raw)
-	if err != nil {
-		return nil, err
+	// Platform filter can miss ports filed under a sibling id; retry unfiltered.
+	if len(out) == 0 && platformID > 0 {
+		out, err = c.searchGamesOnce(ctx, name, 0, limit)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(out) == 0 {
 		return nil, classify(KindNotFound, "IGDB 未命中", nil)
 	}
 	return out, nil
+}
+
+func (c *IGDBClient) searchGamesOnce(ctx context.Context, name string, platformID, limit int) ([]IGDBGame, error) {
+	escaped := strings.ReplaceAll(name, `"`, "")
+	var body string
+	if platformID > 0 {
+		body = fmt.Sprintf(`search "%s"; where platforms = (%d); fields %s; limit %d;`, escaped, platformID, igdbGameFields, limit)
+	} else {
+		body = fmt.Sprintf(`search "%s"; fields %s; limit %d;`, escaped, igdbGameFields, limit)
+	}
+	raw, err := c.post(ctx, "/games", body)
+	if err != nil {
+		return nil, err
+	}
+	return parseIGDBGames(raw)
 }
 
 func (c *IGDBClient) ensureToken(ctx context.Context) error {

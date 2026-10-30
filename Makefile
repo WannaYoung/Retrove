@@ -1,4 +1,4 @@
-.PHONY: dev-backend dev-frontend backend frontend build test lint fmt docker-up docker-down dirs config
+.PHONY: dev-backend dev-frontend backend frontend build test lint fmt docker-up docker-down dirs config reset-db
 
 BACKEND_ENV = \
 	RETROVE_CONFIG=./app/config/config.yaml \
@@ -6,7 +6,7 @@ BACKEND_ENV = \
 	RETROVE_ROMS=./app/roms \
 	RETROVE_DATA=./app/data \
 	RETROVE_CONFIG_DIR=./app/config \
-	RETROVE_SQLITE=./app/data/retrove.db \
+	RETROVE_SQLITE=./app/config/retrove.db \
 	RETROVE_EXPORT=./app/data/export
 
 dirs:
@@ -14,6 +14,13 @@ dirs:
 
 config: dirs
 	@test -f app/config/config.yaml || cp app/config/config.example.yaml app/config/config.yaml
+
+# Wipe SQLite + scraped media/cache/jobs data. Keeps ROMs and Pegasus files under app/roms.
+reset-db: dirs
+	rm -f app/config/retrove.db app/config/retrove.db-wal app/config/retrove.db-shm
+	rm -f app/data/retrove.db app/data/retrove.db-wal app/data/retrove.db-shm
+	rm -rf app/data/media app/data/cache app/data/export
+	mkdir -p app/data/media app/data/export app/data/cache
 
 dev-backend: config
 	$(BACKEND_ENV) go run ./cmd/retrove

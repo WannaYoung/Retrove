@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"retrove/internal/library"
+	"retrove/internal/pegasus"
 	"retrove/internal/scrape"
 )
 
@@ -251,7 +254,54 @@ func (s *Server) pickGameMedia(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "scrape", msg)
 		return
 	}
+	if err := s.mirrorSavedPegasusMedia(updated, body.Kind); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, updated)
+}
+
+func (s *Server) mirrorPegasusMedia(g library.Game, kind string, body []byte, ext string) error {
+	kind = strings.ToLower(strings.TrimSpace(kind))
+	if kind != "box" && kind != "logo" && kind != "video" {
+		return nil
+	}
+	if strings.TrimSpace(g.Filename) == "" {
+		return nil
+	}
+	var dir string
+	if err := s.db.QueryRow(`SELECT directory FROM platforms WHERE id=?`, g.PlatformID).Scan(&dir); err != nil {
+		return err
+	}
+	s.mu.RLock()
+	romsRoot := s.cfg.Paths.Roms
+	s.mu.RUnlock()
+	return pegasus.MirrorMedia(romsRoot, dir, g.Filename, kind, body, ext)
+}
+
+func (s *Server) mirrorSavedPegasusMedia(g library.Game, kind string) error {
+	kind = strings.ToLower(strings.TrimSpace(kind))
+	if kind == "wheel" {
+		kind = "logo"
+	}
+	var rel string
+	for _, m := range g.Media {
+		if m.Kind == kind {
+			rel = m.Path
+			break
+		}
+	}
+	if rel == "" {
+		return nil
+	}
+	s.mu.RLock()
+	dataRoot := s.cfg.Paths.Data
+	s.mu.RUnlock()
+	body, err := os.ReadFile(filepath.Join(dataRoot, "media", filepath.FromSlash(rel)))
+	if err != nil {
+		return err
+	}
+	return s.mirrorPegasusMedia(g, kind, body, filepath.Ext(rel))
 }
 
 func (s *Server) uploadGameMedia(w http.ResponseWriter, r *http.Request) {
@@ -264,17 +314,27 @@ func (s *Server) uploadGameMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind := r.PathValue("kind")
-	if _, err := library.NormalizeMediaKind(kind); err != nil {
+	norm, err := library.NormalizeMediaKind(kind)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, "validation", "不支持的媒体类型")
 		return
 	}
+	kind = norm
 	g, err := s.lib.GetGame(id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "not_found", "游戏不存在")
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 16<<20)
-	if err := r.ParseMultipartForm(16 << 20); err != nil {
+	limit := int64(16 << 20)
+	if library.IsVideoKind(kind) {
+		limit = 64 << 20
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
+	if err := r.ParseMultipartForm(limit); err != nil {
+		if library.IsVideoKind(kind) {
+			writeError(w, http.StatusBadRequest, "validation", "请上传视频文件")
+			return
+		}
 		writeError(w, http.StatusBadRequest, "validation", "请上传图片文件")
 		return
 	}
@@ -296,6 +356,10 @@ func (s *Server) uploadGameMedia(w http.ResponseWriter, r *http.Request) {
 	asset, err := s.lib.SaveMediaFile(dataRoot, g, kind, body, ext, "upload")
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "保存媒体失败")
+		return
+	}
+	if err := s.mirrorPegasusMedia(g, kind, body, ext); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", err.Error())
 		return
 	}
 	updated, err := s.lib.GetGame(id)
